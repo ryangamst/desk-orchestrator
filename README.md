@@ -18,6 +18,24 @@ The automated installation and offline tests send no hardware commands.
 Device IDs, IR captures, volume calibration,
 and Raspberry Pi deployment must be supplied locally before live operation.
 
+![The Hardware page: a map of the desk's devices, ports, and cables](docs/screenshots/hardware-map.png)
+
+## Screenshots
+
+Screenshots use the [example configuration](config/desk.example.toml) with a
+sample wiring map; no real hardware was controlled.
+
+| | |
+|---|---|
+| ![Selecting the KVM shows its commands, connections, and tasks; hovering a task traces its route](docs/screenshots/hardware-route.png) | ![The numpad on the map, with its task keys and the active task's key mappings](docs/screenshots/hardware-numpad.png) |
+| **Hardware → device panel.** Select a device to send single commands. Hovering a task highlights the devices, ports, and cables it switches. | **Hardware → numpad.** Once a numpad is selected, it appears on the map with its task keys and the active task's key mappings. |
+| ![Edit mode with the OPPO HA-1 selected: name, notes, and typed ports](docs/screenshots/hardware-edit.png) | ![Adding hardware from edit mode](docs/screenshots/hardware-add.png) |
+| **Hardware → Edit.** Arrange devices, add typed ports, and drag between port dots to connect them. | **Hardware → Edit → Add hardware.** New devices go straight onto the map; Save writes everything in one step. |
+| ![Overview with task cards and the live virtual numpad](docs/screenshots/overview.png) | ![Task editor action sequence](docs/screenshots/task-editor.png) |
+| **Overview.** Task cards, the active task, and the live virtual numpad. | **Tasks → Edit.** An ordered action sequence: IR commands, waits, KVM ports, and monitor inputs. |
+
+<p align="center"><img src="docs/screenshots/mobile-hardware.png" alt="The Hardware page on a phone" width="300"></p>
+
 ## Automated Raspberry Pi setup
 
 After copying this project to a Raspberry Pi 4 running Raspberry Pi OS or Ubuntu
