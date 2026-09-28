@@ -1,0 +1,25 @@
+[Unit]
+Description=Desk Orchestrator configuration web app
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=desk
+Group=desk
+SupplementaryGroups=input dialout
+WorkingDirectory=/opt/desk-orchestrator
+EnvironmentFile=/etc/desk-orchestrator/credentials.env
+ExecStart=/opt/desk-orchestrator/.venv/bin/desk --config /etc/desk-orchestrator/desk.toml web --data-dir /var/lib/desk-orchestrator --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=3
+StateDirectory=desk-orchestrator
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/desk-orchestrator
+
+[Install]
+WantedBy=multi-user.target

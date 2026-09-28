@@ -1,0 +1,21 @@
+{% extends 'base.html' %}{% block section %}Hardware{% endblock %}
+{% block content %}<a class="back-link" href="{{ url_for('hardware_list', device=name) if name else url_for('hardware_list') }}">← Hardware</a><div class="page-heading"><div><h1>{{ 'Edit hardware' if name else 'Add hardware' }}</h1><p>Name the device, choose its controls, and define the actions it supports.</p></div></div>
+{% if name and item.method == "ir" %}<p><a class="button" href="{{ url_for('ir_commands', name=name) }}">Add & learn IR commands →</a></p>{% elif not name %}<p class="hint">Save the hardware first to learn IR buttons or browse LIRC keys.</p>{% endif %}
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<script type="application/json" id="serial-devices">{{ serial_devices|tojson }}</script>
+<form method="post" id="hardware-form" class="editor-form" data-dirty-guard><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="revision" value="{{ form_revision }}"><input type="hidden" name="settings" id="settings-json"><script type="application/json" id="hardware-data">{{ item|tojson }}</script>
+<section class="panel"><div class="section-heading"><h2>Device details</h2><span class="step-badge">01</span></div><div class="form-grid"><label>Hardware name<input name="name" required maxlength="100" value="{{ item.name }}" placeholder="e.g. Living room amplifier"></label>{% if not name %}<label>Device ID<input name="id" required pattern="[a-z][a-z0-9_]{0,47}" value="{{ request.form.get('id', '') }}" placeholder="living_room_amp"><small>A stable ID used by task actions.</small></label>{% else %}<label>Device ID<input value="{{ name }}" disabled><small>Keep this ID stable so tasks stay connected.</small></label>{% endif %}{% if name == controller_id %}<label>Hardware type<input value="Controller" disabled><small>This Raspberry Pi is a fixed node on the Hardware Map.</small></label><label>Control method<select name="method" id="control-method"><option value="none" selected>{{ methods['none'] }}</option></select></label><input type="hidden" name="type" value="Controller">{% else %}<label>Hardware type<select name="type">{% for type in types %}<option {{ 'selected' if item.type == type }}>{{ type }}</option>{% endfor %}</select></label><label>Control method<select name="method" id="control-method">{% for key, label in methods.items() %}<option value="{{ key }}" {{ 'selected' if item.method == key }}>{{ label }}</option>{% endfor %}</select></label>{% endif %}<label class="full">Connection notes<textarea name="notes" rows="2" maxlength="2000" placeholder="Cables, ports, and anything you’ll want to remember…">{{ item.notes }}</textarea></label></div></section>
+<section class="panel"><div class="section-heading"><h2>Control settings</h2><span class="step-badge">02</span></div><div id="control-settings"></div></section>
+<div class="form-footer"><a class="button" href="{{ url_for('hardware_list', device=name) if name else url_for('hardware_list') }}">Cancel</a><button class="button primary">Save hardware</button></div><noscript><p class="notice error">Enable JavaScript to use the hardware editor.</p></noscript></form>
+{% if name and item.method == 'smartthings' and not error %}
+<section class="panel smartthings-tests" aria-labelledby="input-test-heading">
+<h2 id="input-test-heading">Test saved inputs</h2>
+<p>Each test switches this monitor to the selected input and waits for SmartThings confirmation. Save your mappings before testing. You can test before marking the hardware verified.</p>
+<form id="smartthings-test-form" method="post" action="{{ url_for('hardware_test_smartthings', name=name) }}">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="revision" value="{{ cfg.revision }}">
+<div class="stack-buttons">{% for input_name, value in item.settings.get('inputs', {}).items() %}
+<button class="button" name="input" value="{{ input_name }}" type="submit">Test {{ input_name }} → {{ value }}</button>
+{% else %}<p class="hint">Add and save an input mapping to test it here.</p>{% endfor %}</div>
+<p id="smartthings-test-result" class="hint" role="status" aria-live="polite">Tests use the saved settings shown above.</p>
+</form></section>
+{% endif %}{% endblock %}

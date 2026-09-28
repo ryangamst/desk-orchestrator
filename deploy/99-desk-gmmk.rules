@@ -1,0 +1,6 @@
+# Read-only stock GMMK Numpad input reports for the desk service account.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="5088", GROUP="desk", MODE="0440"
+# Only the vendor lighting interface needs writes. usb_id supplies interface
+# properties; ATTRS matches cannot combine USB-device and interface ancestors.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="5088", IMPORT{builtin}="usb_id"
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="320f", ENV{ID_MODEL_ID}=="5088", ENV{ID_USB_INTERFACE_NUM}=="02", GROUP="desk", MODE="0660"

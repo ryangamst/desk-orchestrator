@@ -1,0 +1,20 @@
+<section class="panel" id="https">
+<h2>HTTPS · Let's Encrypt</h2>
+<p>Add certificate verification TXT records yourself in AWS Lightsail. This device needs no AWS credentials or CLI, and can stay on your private network.</p>
+{% if not tls_status.installed %}<p class="alert">Install HTTPS dependencies on the server: <code>pip install ".[web,tls]"</code>.</p>{% endif %}
+{% set tc = tls_status.config %}
+<details class="technical-details"{% if not tc.domain %} open{% endif %}><summary>Certificate setup</summary>
+<form method="post" action="{{ url_for('https_configure') }}" data-dirty-guard>
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="revision" value="{{ tc.revision }}">
+<label>HTTPS hostname<input name="domain" required value="{{ tc.domain }}" placeholder="smartthings.example.com"></label>
+<label>Lightsail DNS zone<input name="zone" required value="{{ tc.zone }}" placeholder="example.com"><small>Used to show the correct record name for your public DNS zone. Your local DNS record still points the hostname to this computer.</small></label>
+<label>Certificate account email<input name="email" type="email" value="{{ tc.email }}"></label>
+<label class="tls-consent"><input type="checkbox" name="agreed" value="yes" {% if tc.agreed %}checked{% endif %}><span>I agree to the <a href="https://letsencrypt.org/repository/" target="_blank" rel="noopener noreferrer">Let's Encrypt subscriber agreement</a>.</span></label>
+<p class="hint">Issuing a trusted certificate publishes this hostname in public certificate transparency logs.</p>
+<button class="button" {% if tls_status.busy %}disabled{% endif %}>Save HTTPS setup</button>
+</form></details>
+<div class="tls-operation" data-tls-operation data-status-url="{{ url_for('https_status') }}">{% include 'tls_operation.html' %}</div>
+<p class="hint">Renewal requires your participation when a new TXT challenge is needed. Check this page before the certificate expires. The HTTPS listener loads an issued certificate automatically; it does not start unattended renewals.</p>
+<p class="hint">The HTTPS listener must be installed and running on port 443. A certificate alone does not start the listener or change your computer's DNS.</p>
+<script src="{{ url_for('static', filename='tls_settings.js') }}" defer></script>
+</section>

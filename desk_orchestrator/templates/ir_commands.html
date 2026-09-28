@@ -1,0 +1,33 @@
+{% extends 'base.html' %}{% from 'macros.html' import hidden with context %}
+{% block section %}Hardware{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('hardware_edit', name=name) }}">← Configure {{ item.name }}</a>
+<div class="page-heading"><div><h1>IR commands</h1><p>{{ item.name }} · Add existing LIRC keys or learn a button from your remote.</p></div></div>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+{% if connection_error %}<div class="notice error" role="alert">{{ connection_error }} Learning uses the receiver independently. Testing requires a working lircd connection.</div>{% endif %}
+<div class="settings-grid">
+<section class="panel"><h2>Learn a button</h2>
+<p>Aim your remote at the Pi’s IR receiver. Start learning, then briefly press the button once within 12 seconds.</p>
+<p class="hint">Receiver: {{ cfg.ir.get('receiver', '/dev/desk-ir-rx') }} · <a href="{{ url_for('settings') }}">Change receiver</a>. This raw LIRC receiver is separate from the Numpad input selection. Learning temporarily blocks task execution and dial/slider actions.</p>
+<form method="post" data-ir-learn>{{ hidden(cfg) }}<input type="hidden" name="action" value="learn">
+<label>Command ID<input name="command" required pattern="[a-z][a-z0-9_]{0,47}" maxlength="48" placeholder="volume_up" value="{{ request.form.get('command', '') if request.form.get('action') == 'learn' else '' }}"><small>Use lowercase letters, numbers and underscores.</small></label>
+<label>Carrier frequency (Hz)<input type="number" name="frequency" min="20000" max="60000" value="{{ request.form.get('frequency', '38000') }}" required><small>38,000 Hz is common. The receiver cannot measure the carrier; use your remote’s specification.</small></label>
+<label class="checkbox-field"><input type="checkbox" name="replace">Replace an existing command with this ID</label>
+<button class="button primary">Start learning</button><p class="hint" role="status" aria-live="polite" data-learning-status></p>
+</form><p class="hint">Captures one raw frame. Remotes with toggle bits, long frames or multi-frame protocols may need irrecord on the Pi. Always test repeated presses before relying on a command.</p></section>
+<section class="panel"><h2>Add an existing LIRC key</h2>
+<form method="get"><label>LIRC remote<select name="remote"><option value="">Choose a remote</option>{% for remote in remotes %}<option value="{{ remote }}" {{ 'selected' if remote == selected_remote }}>{{ remote }}</option>{% endfor %}</select></label><button class="button">Load keys / refresh</button></form>
+<hr><form method="post">{{ hidden(cfg) }}<input type="hidden" name="action" value="add"><input type="hidden" name="remote" value="{{ selected_remote }}">
+<label>Learned key<select name="key" required><option value="">Choose a key</option>{% for key in available_keys %}<option>{{ key }}</option>{% endfor %}</select></label>
+<label>Command ID<input name="command" required pattern="[a-z][a-z0-9_]{0,47}" maxlength="48" placeholder="power_on"></label>
+<label class="checkbox-field"><input type="checkbox" name="replace">Replace an existing command with this ID</label>
+<button class="button" {{ 'disabled' if not available_keys }}>Add command</button></form></section>
+</div>
+<section class="panel"><h2>Saved commands</h2><p>Testing sends one real button press to your equipment. Check the physical response before verifying. Edit sequences and delete commands in <a href="{{ url_for('hardware_edit', name=name) }}">Configure hardware</a>.</p>
+{% for command, macro in item.settings.get('commands', {}).items() %}
+<article class="ir-command"><div class="section-heading"><h3>{{ command }}</h3><span class="pill {{ 'green' if macro.get('verified') else 'amber' }}">{{ 'Verified' if macro.get('verified') else 'Unverified' }}</span></div>
+{% for pulse in macro.get('sequence', []) %}<p class="hint ir-destination">{{ pulse.get('remote', item.settings.get('remote', '')) }} / {{ pulse.key }} · {{ pulse.get('count', 1) }} press(es)</p>{% if not connection_error and pulse.get("remote", item.settings.get("remote", "")) not in remotes %}<p class="notice error">This remote is not loaded in lircd. The command is saved, but cannot be tested until LIRC loads its configuration. For app-learned codes, the Pi needs the learned-code include and desk-ir-reload.path service installed.</p>{% endif %}{% endfor %}
+<form method="post">{{ hidden(cfg) }}<input type="hidden" name="command" value="{{ command }}"><input type="hidden" name="action" value="test"><button class="button small">Test one press</button></form>
+{% if tested and tested[0] == name and tested[1] == command %}<form method="post" class="ir-verification">{{ hidden(cfg) }}<input type="hidden" name="command" value="{{ command }}"><input type="hidden" name="action" value="verify"><label class="checkbox-field"><input type="checkbox" name="observed" required>I observed the correct response</label><label class="checkbox-field"><input type="checkbox" name="discrete" {{ 'checked' if macro.get('discrete') }}>This selects a fixed state (required for power_on / power_off)</label><button class="button primary small">Mark verified</button></form>{% endif %}
+</article>{% else %}<p>No commands yet. Learn or add your first button above.</p>{% endfor %}</section>
+{% endblock %}

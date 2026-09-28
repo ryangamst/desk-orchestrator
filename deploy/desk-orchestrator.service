@@ -1,0 +1,26 @@
+[Unit]
+Description=Desk numpad scene controller
+Wants=network-online.target
+After=network-online.target desk-gadget.service lircd.service
+
+[Service]
+Type=simple
+User=desk
+Group=desk
+SupplementaryGroups=input dialout
+WorkingDirectory=/opt/desk-orchestrator
+EnvironmentFile=/etc/desk-orchestrator/credentials.env
+ExecStart=/opt/desk-orchestrator/.venv/bin/desk --config /etc/desk-orchestrator/desk.toml listen --live
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=150
+StateDirectory=desk-orchestrator
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/desk-orchestrator
+
+[Install]
+WantedBy=multi-user.target

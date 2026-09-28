@@ -1,0 +1,6 @@
+[Unit]
+Description=Reload learned Desk Orchestrator IR codes
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl kill --kill-whom=main --signal=HUP lircd.service

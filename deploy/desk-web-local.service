@@ -1,0 +1,14 @@
+[Unit]
+Description=Desk Orchestrator local configuration web app
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Documents/Code/desk-orchestrator
+ExecStart=%h/Documents/Code/desk-orchestrator/.venv/bin/desk web --data-dir %h/Documents/Code/desk-orchestrator/.runtime/web --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

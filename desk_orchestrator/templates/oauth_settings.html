@@ -1,0 +1,26 @@
+<section class="panel" id="smartthings-oauth">
+<h2>SmartThings OAuth</h2>
+<p role="status">{{ oauth_status.message }}</p>
+{% if oauth_status.expires %}<p class="hint">Access token expiry: {{ oauth_status.expires }}. Refresh is attempted when a SmartThings request needs it.</p>{% endif %}
+<details class="technical-details"{% if not oauth_status.credentials_ready or not cfg.smartthings.get('redirect_uri') %} open{% endif %}><summary>OAuth connection setup</summary><p class="hint">Client credentials: <strong>{{ 'loaded (not verified)' if oauth_status.credentials_ready else 'missing' }}</strong>. The service reads SMARTTHINGS_CLIENT_ID and SMARTTHINGS_CLIENT_SECRET from its environment. Loaded means both values are present; SmartThings validates them during token exchange. Restart after changing credentials.</p>
+<form method="post" action="{{ url_for('oauth_configure') }}" data-dirty-guard>
+{{ hidden(cfg) }}
+<label>Registered redirect URI<input name="redirect_uri" type="url" required value="{{ cfg.smartthings.get('redirect_uri', '') }}" placeholder="https://your-host/oauth/callback"><small>Enter the exact URI registered with SmartThings, ending in /oauth/callback. Open and sign in to this app using that same host and port before connecting.</small></label>
+<label>OAuth app type<select name="token_endpoint">
+<option value="/oauth/token" {{ 'selected' if cfg.smartthings.get('oauth_token_endpoint', cfg.smartthings.get('token_endpoint', '/oauth/token')) == '/oauth/token' }}>CLI OAuth-In App (/oauth/token)</option>
+<option value="/v1/oauth/token" {{ 'selected' if cfg.smartthings.get('oauth_token_endpoint', cfg.smartthings.get('token_endpoint')) == '/v1/oauth/token' }}>API Access App preview (/v1/oauth/token)</option>
+</select></label>
+<button class="button">Save OAuth setup</button>
+</form></details>
+{% if oauth_status.settings_url %}<p><a href="{{ oauth_status.settings_url }}">Open Settings at the registered address ↗</a></p>{% endif %}
+<p class="hint">Connecting requests device read and execute permissions. Your existing connection remains active until authorization succeeds. Tokens are saved automatically on this server.</p>
+<form method="post" action="{{ url_for('oauth_connect') }}">
+{{ hidden(cfg) }}<button class="button primary" {% if not oauth_status.credentials_ready or not cfg.smartthings.get('redirect_uri') %}disabled{% endif %}>{{ 'Reconnect to SmartThings' if oauth_status.token_file else 'Connect to SmartThings' }}</button>
+</form>
+{% if oauth_status.token_file %}
+<form method="post" action="{{ url_for('oauth_check') }}" class="oauth-checks">
+{{ hidden(cfg) }}<div class="stack-buttons"><button class="button">Check OAuth connection</button><button class="button" name="refresh" value="yes">Test token refresh</button></div>
+<p class="hint">These checks read device information. Test token refresh replaces and saves the token pair without switching monitor inputs.</p>
+</form>
+{% endif %}
+</section>

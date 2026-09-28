@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block section %}Tasks{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('tasks') }}">← All tasks</a>
+<div class="page-heading">
+  <div><h1>{{ task.label }}</h1><p>A preview of the saved task. No hardware commands are sent.</p></div>
+  <a class="button" href="{{ url_for('task_edit', name=name) }}">Edit task</a>
+</div>
+<div class="editor-form task-preview">
+  <section class="panel">
+    <div class="section-heading"><h2>Task details</h2><span class="step-badge">01</span></div>
+    <dl class="form-grid preview-details">
+      <div><dt>Task name</dt><dd>{{ task.label }}</dd></div>
+      <div><dt>Task ID</dt><dd>{{ name }}</dd></div>
+      <div><dt>Numpad key</dt><dd>{% for code, owner in cfg.keypad.bindings.items() if owner == name %}<kbd>{{ keys[code] }}</kbd>{% else %}No key assigned{% endfor %}</dd></div>
+      <div><dt>Activation</dt><dd>{{ 'Runs without changing the active task' if task.get('keep_active_task', false) else 'Becomes the active task' }}</dd></div>
+    </dl>
+  </section>
+
+  {% if not task.get('keep_active_task', false) %}{% with key_commands_readonly=true %}{% include 'task_key_commands.html' %}{% endwith %}{% endif %}
+
+  <section class="panel action-panel">
+    <div class="section-heading"><div><h2>Action sequence</h2><p class="hint">Actions run from top to bottom. A failed action stops the task.</p></div><span class="step-badge">03</span></div>
+    <ol class="preview-actions">
+      {% for step in task.steps %}
+      <li>{% if step.kind == 'wait' %}<strong>Wait {{ step.seconds }} seconds</strong>
+        {% elif step.kind == 'kvm' %}<strong>Select KVM port {{ step.port }}</strong>
+        {% else %}<strong>{{ cfg.inventory.get(step.device, {}).get('name', step.device) }}</strong>
+        <span>{% if step.kind == 'ir' %}{{ step.command|replace('_',' ')|capitalize }}{% elif step.kind == 'monitor' %}Select input: {{ step.input }}{% else %}Volume target: {{ step.db }} dB (calibrated approximation){% endif %}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if not task.get('keep_active_task', false) %}
+  <section class="panel">
+    <div class="section-heading"><div><h2>Dial and slider</h2><p class="hint">These mappings apply after this task completes successfully.</p></div><span class="step-badge">04</span></div>
+    {% for control, label in control_names.items() %}
+    {% set mapping = task.get('controls', {}).get(control) %}
+    <div class="preview-control" id="{{ control }}-controls">
+      <h3>{{ label }}</h3>
+      {% if mapping %}
+      {% set default = mapping.click.sources[0] if mapping.get('click') else mapping %}
+      <dl class="form-grid preview-details">
+        <div><dt>Function</dt><dd>{{ 'Relative volume' if mapping.mode == 'volume' else 'Directional IR commands' }}</dd></div>
+        <div><dt>Target device</dt><dd>{{ cfg.inventory[default.device].name }}</dd></div>
+        <div><dt>{{ 'Clockwise' if control == 'dial' else 'Move up' }} / increase</dt><dd>{{ default.increase|replace('_', ' ') }}</dd></div>
+        <div><dt>{{ 'Counterclockwise' if control == 'dial' else 'Move down' }} / decrease</dt><dd>{{ default.decrease|replace('_', ' ') }}</dd></div>
+      </dl>
+      {% if mapping.get('click') %}
+      <h3>Wheel click</h3>
+      <p class="hint">Advance through volume sources; source 1 is the default.</p>
+      <ol>{% for source in mapping.click.sources %}<li>{{ cfg.inventory[source.device].name }}{{ ' (Default)' if loop.first }} · Increase: {{ source.increase|replace('_', ' ') }} · Decrease: {{ source.decrease|replace('_', ' ') }}</li>{% endfor %}</ol>
+      {% endif %}
+      {% else %}<p class="hint">Unassigned</p>{% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  {% endif %}
+
+  <section class="panel"><h2>{{ 'Connection check' if probed else 'Optional connection diagnostics' }}</h2>{% if probed %}<p role="status">Connection check completed. No hardware commands were sent.</p>{% endif %}{% if probed %}{% if problems %}<p class="pill amber">{{ problems|length }} items need attention</p><ul class="problem-list">{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>{% else %}<p class="notice success">Checks passed.</p>{% endif %}{% else %}<p class="hint">Tasks run without hardware preflight checks. You can check connections here when troubleshooting.</p>{% endif %}{% if passed %}<h3>Passed checks</h3><ul class="connection-results">{% for check in passed %}<li><strong>{{ check.label }}{% if check.device %} · {{ cfg.inventory.get(check.device, {}).get('name', check.device) }}{% endif %}</strong><p>{{ check.message }}</p></li>{% endfor %}</ul>{% endif %}<form method="post" data-connection-check><input type="hidden" name="csrf" value="{{ csrf }}"><button class="button primary">{{ 'Check again' if probed else 'Check connections' }}</button><p class="hint" data-check-progress role="status" hidden></p></form><p class="hint">Reads SmartThings status, queries LIRC codes, and checks the USB keyboard device. OAuth credentials may refresh. No control commands are sent. To test input switching, open the monitor’s Hardware page and use its saved-input test buttons.</p></section>
+</div>
+{% endblock %}

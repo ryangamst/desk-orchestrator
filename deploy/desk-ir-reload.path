@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch IR codes learned by Desk Orchestrator
+
+[Path]
+PathChanged=/var/lib/desk-orchestrator/ir-codes
+Unit=desk-ir-reload.service
+
+[Install]
+WantedBy=multi-user.target

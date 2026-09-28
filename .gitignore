@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+.runtime/
+config/desk.toml
+*.env
+*tokens*.json
+
+# Local screenshots and editor/OS files
+Claude outputs/
+*.sqlite3
+*.log
+.DS_Store
+.idea/
+.vscode/

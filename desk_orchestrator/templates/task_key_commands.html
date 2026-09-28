@@ -1,0 +1,89 @@
+{% set serial_keyboard = cfg.get('kvm', {}).get('transport') == 'ch9328' %}
+<section class="panel key-command-editor" id="key-command-editor" {{ 'data-readonly' if key_commands_readonly }}>
+  <div class="section-heading"><div><h2>Keyboard mapping</h2><p class="hint">{{ 'Select a numpad key to view its saved command for this task.' if key_commands_readonly else 'Select a numpad key, then assign a keyboard sequence or IR command for this task.' }}</p></div><span class="step-badge">02</span></div>
+  <p class="hint">Choose an IR command saved in Hardware, or define shortcuts for the operating system or app on this task’s computer: Win+R, Cmd+Space, Ctrl+Alt+T, or your own combination. {% if serial_keyboard %}Your CH9328 connection sends keyboard sequences through the existing serial interface.{% endif %}</p>
+  {% if not key_commands_readonly %}
+  <input type="hidden" name="key_commands_present" value="1">
+  <script type="application/json" id="macro-command-options">{{ keyboard_commands|tojson }}</script>
+  <datalist id="shortcut-key-names">{% for key in shortcut_keys %}<option value="{{ key }}">{% endfor %}</datalist>
+  {% endif %}
+  <div class="key-command-layout">
+    <div>
+      <div class="numpad-housing" role="group" aria-label="{{ 'Choose a numpad key to preview' if key_commands_readonly else 'Choose a numpad key to configure' }}">
+        <div class="numpad">
+          {% for code in ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT'] %}
+          {% set selected = editable_sequence(task.get('key_commands', {}).get(code, '')) %}
+          {% set owner = cfg.keypad.bindings.get(code) %}
+          {% set reserved = code in reserved_command_keys %}
+          {% set appearance = task_appearance(owner, cfg.scenes[owner]) if owner else {} %}
+          {% set reason = 'Launches ' + cfg.scenes[owner].label if owner else ('Reserved for a dial or slider input' if reserved else '') %}
+          <button type="button" class="key {{ 'tone-' + appearance.color if owner else 'tone-lavender' }} {{ 'mapped' if owner or selected or reserved }} {{ 'tall' if code in ['KEY_KPPLUS','KEY_KPENTER'] }} {{ 'wide' if code == 'KEY_KP0' }}"
+            data-command-key="{{ code }}" data-key-label="{{ keys[code] }}" data-reserved-reason="{{ reason }}"
+            aria-controls="command-panel-{{ code }}" aria-pressed="{{ 'true' if code == 'KEY_NUMLOCK' else 'false' }}"
+            aria-label="{{ keys[code] }}: {{ reason or (command_label(selected, cfg) if selected else 'Unassigned') }}"
+            title="{{ reason or (command_label(selected, cfg) if selected else 'Unassigned') }}">{{ 'Num' if code == 'KEY_NUMLOCK' else keys[code] }}</button>
+          {% endfor %}
+        </div>
+        <div class="numpad-side-controls">
+          <a class="numpad-wheel" href="#dial-controls" aria-label="{{ 'View' if key_commands_readonly else 'Configure' }} the rotary dial" title="{{ 'View' if key_commands_readonly else 'Configure' }} the rotary dial"><span class="wheel-face" aria-hidden="true"><span class="wheel-marker"></span></span></a>
+          <a class="numpad-slider" href="#slider-controls" aria-label="{{ 'View' if key_commands_readonly else 'Configure' }} the slider" title="{{ 'View' if key_commands_readonly else 'Configure' }} the slider"><span class="slider-track" aria-hidden="true"></span><span class="slider-thumb" aria-hidden="true"><span></span></span></a>
+          <span class="numpad-badge" aria-hidden="true">d<span>.</span></span>
+        </div>
+      </div>
+      <p class="hint key-command-legend">Colored keys have an assignment. Select any key to see its mapping.</p>
+    </div>
+    <div class="key-command-details">
+      {% for code, label in keys.items() %}
+      {% set selected = editable_sequence(task.get('key_commands', {}).get(code, '')) %}
+      {% set reserved = code in reserved_command_keys %}
+      {% set owner = cfg.keypad.bindings.get(code) %}
+      <div id="command-panel-{{ code }}" data-command-panel="{{ code }}" {{ 'hidden' if code != 'KEY_NUMLOCK' }}>
+        <p class="eyebrow">SELECTED KEY</p><h3>{{ label }}</h3>
+        {% if key_commands_readonly %}
+        {% if owner %}
+        <p>Launches <strong>{{ cfg.scenes[owner].label }}</strong></p>
+        {% elif reserved %}
+        <p class="hint">Reserved for a dial or slider input.</p>
+        {% elif selected %}
+        <p><strong>{{ command_label(selected, cfg) }}</strong></p>
+        {% if selected is mapping and not is_ir_binding(selected) %}
+        <ol>{% for step in selected.get('steps', []) %}<li>{% if 'shortcut' in step %}{{ step.shortcut }}{% elif 'command' in step %}{{ command_label(step.command) }}{% else %}Wait {{ step.wait }} seconds{% endif %}</li>{% endfor %}</ol>
+        {% endif %}
+        {% if serial_keyboard and (selected is string and selected in keyboard_commands and keyboard_commands[selected][1] == 'consumer') %}<p class="notice">This saved media command cannot be sent by the CH9328 bridge. Edit the task to replace it with a keyboard sequence or clear the mapping.</p>{% endif %}
+        {% else %}<p class="hint">Unassigned</p>{% endif %}
+        {% else %}
+        <p class="hint" data-key-reservation>{{ 'Launches ' + cfg.scenes[owner].label + '. This key is reserved.' if owner else ('Reserved for a dial or slider input.' if reserved else 'Choose what this key sends while this task is active.') }}</p>
+        <label>Mapping<select name="command_{{ code }}" aria-describedby="key-command-note" {{ 'disabled' if reserved and not selected }}>
+          <option value="">Unassigned</option>
+          <option value="custom" {{ 'selected' if (selected is mapping and not is_ir_binding(selected)) or selected == 'custom' }}>Keyboard sequence</option>
+          <option value="ir" {{ 'selected' if is_ir_binding(selected) }}>IR command</option>
+          {% if selected is string and selected in keyboard_commands %}<option value="{{ selected }}" selected>{{ command_label(selected, cfg) }} (saved legacy command)</option>{% endif %}
+        </select></label>
+        {% set ir_mapping = selected if is_ir_binding(selected) else {} %}
+        <div data-ir-editor {{ 'hidden' if not is_ir_binding(selected) }}>
+          <label>IR device<select name="ir_device_{{ code }}" data-ir-device>
+            <option value="">Choose IR hardware</option>
+            {% for id, device in cfg.inventory.items() if device.method == 'ir' %}<option value="{{ id }}" {{ 'selected' if ir_mapping.get('device') == id }}>{{ device.name }}</option>{% endfor %}
+            {% if ir_mapping.get('device') and ir_mapping.device not in cfg.inventory %}<option value="{{ ir_mapping.device }}" selected>Missing device: {{ ir_mapping.device }}</option>{% endif %}
+          </select></label>
+          <label>IR command<select name="ir_command_{{ code }}" data-ir-command data-saved-command="{{ ir_mapping.get('command', '') }}"></select></label>
+          <p class="hint">Each press sends this device’s saved IR command once. Add or learn commands in <a href="{{ url_for('hardware_list') }}">Hardware</a>.</p>
+        </div>
+        <div data-macro-editor {{ 'hidden' if is_ir_binding(selected) or (selected is not mapping and selected != 'custom') }}>
+          <input type="hidden" name="macro_{{ code }}" data-macro-value value="{{ request.form.get('macro_' + code, (selected if selected is mapping and not is_ir_binding(selected) else {'label':'','steps':[{'shortcut':''}]})|tojson)|forceescape }}">
+          <label>Sequence name <small>(optional)</small><input data-macro-label maxlength="80" placeholder="e.g. Open Run dialog"></label>
+          <p class="hint">Add one shortcut or a sequence. Use + to combine keys, such as Win+R or Cmd+Space. Use Add step for keys to send afterward; add a delay if an app needs time to respond. Each step releases its keys before the next.</p>
+          <div data-macro-steps></div>
+          <button type="button" class="button small" data-add-macro-step>＋ Add step</button>
+          <details class="macro-key-help"><summary>Key names and limits</summary><p class="hint">Letters A–Z, digits 0–9, F1–F24, arrows, Enter, Escape, Tab, Space, Home, End, PageUp, PageDown, Insert, Delete, Backspace, PrintScreen, Pause, Menu, CapsLock, ScrollLock, NumLock and Numpad0–9 are supported. Use Ctrl, Shift, Alt / Option, Meta / Cmd / Win / Super; prefix Right for right-side modifiers.</p><p class="hint">Punctuation names: Minus, Equal, LeftBracket, RightBracket, Backslash, Semicolon, Quote, Backquote, Comma, Period and Slash. Use Shift+Equal for +. Shortcuts send physical keys using the connected computer’s keyboard layout; capital letters do not add Shift automatically. Advanced keyboard usages: 0x04–0xDF. Up to six keys plus modifiers per shortcut, 100 steps and 60 seconds of delays per sequence. {% if serial_keyboard %}Extended keys depend on the bridge firmware and connected computer.{% else %}F13–F24 and usages above 0x65 need the updated USB gadget setup.{% endif %}</p></details>
+        </div>
+        {% if serial_keyboard %}<p class="hint" data-command-output role="status"></p>{% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+      <p class="hint" id="key-command-note">{{ 'Preview only. Selecting a key does not send a command.' if key_commands_readonly else ('Changes apply when you save the task. Keyboard sequences go to the selected KVM computer; IR commands go through the Pi’s IR transmitter.' if serial_keyboard else 'Changes apply when you save the task. Each mapping uses its keyboard or IR interface.') }}</p>
+    </div>
+  </div>
+  <p class="hint key-command-footer">{% if key_commands_readonly %}<a href="{{ url_for('task_edit', name=name) }}">Edit task</a> to change these assignments.{% else %}Task-launch and dial / slider keys are reserved. Save changes to those assignments first to free a key.{% endif %}</p>
+</section>
+<script src="{{ url_for('static', filename='task_key_commands.js') }}" defer></script>

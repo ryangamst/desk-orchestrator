@@ -1,0 +1,3 @@
+# Only install after verifying that hidg0 and hidg1 belong to desk_keyboard.
+SUBSYSTEM=="hidg", KERNEL=="hidg0", GROUP="desk", MODE="0660"
+SUBSYSTEM=="hidg", KERNEL=="hidg1", GROUP="desk", MODE="0660"

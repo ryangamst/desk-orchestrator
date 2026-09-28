@@ -1,0 +1,29 @@
+<div data-tls-progress data-busy="{{ 'true' if tls_status.busy else 'false' }}">
+{% if tls_status.expires %}<p>Trusted certificate expires: <strong>{{ tls_status.expires }}</strong>.</p>{% else %}<p>No valid trusted certificate installed.</p>{% endif %}
+{% if tls_status.renewal_needed %}<p class="alert">Your certificate expires in less than 30 days. Start a renewal check and complete any new TXT challenge.</p>{% endif %}
+{% if tls_status.certificate_error %}<p class="alert">{{ tls_status.certificate_error }} Use the local HTTP Settings page to renew if HTTPS is unavailable.</p>{% endif %}
+{% if tls_status.job %}<p role="status"><strong>{{ tls_status.job.state|capitalize }}:</strong> {{ tls_status.job.message }}</p>{% endif %}
+{% set ch = tls_status.challenge %}
+{% if ch %}
+<section class="dns-challenge" aria-label="Manual DNS challenge">
+<h3>{{ 'Remove the TXT value' if ch.state == 'cleanup' else 'Add a TXT record in AWS Lightsail' }}</h3>
+<p role="status">{{ ch.message }}</p>
+{% if ch.state != 'cleanup' %}<ol><li>Open <a href="https://lightsail.aws.amazon.com/" target="_blank" rel="noopener noreferrer">AWS Lightsail ↗</a>, choose <strong>Domains &amp; DNS</strong>, then the <strong>{{ ch.zone }}</strong> DNS zone.</li><li>Add a <strong>TXT</strong> record using the name and value below. Preserve any other TXT values at this name.</li><li>Save it in AWS, then choose <strong>Check TXT and continue</strong>. Allow time for public DNS propagation.</li></ol>{% endif %}
+<label>Record name in the {{ ch.zone }} zone<input readonly value="{{ ch.host }}" aria-label="TXT record name"></label>
+<label>Full DNS name<input readonly value="{{ ch.record.name }}" aria-label="Full TXT DNS name"></label>
+<label>TXT value<input readonly value="{{ ch.value }}" aria-label="TXT value"><small>Copy the entire value. It is unique to this request.</small></label>
+{% if ch.state == 'waiting' and tls_status.busy %}<p class="hint">Complete this challenge within 30 minutes of its creation. Keep the TXT value until this page tells you to remove it.</p><form method="post" action="{{ url_for('https_control') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ ch.id }}"><button class="button primary" name="action" value="continue">Check TXT and continue</button></form>{% endif %}
+{% if ch.state == 'cleanup' and not tls_status.busy %}<p>Delete only the exact value shown above. Leave other TXT records in place. If you never added it, you can acknowledge cleanup now.</p><form method="post" action="{{ url_for('https_control') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ ch.get('id', 'legacy') }}"><button class="button" name="action" value="cleanup">I removed this TXT value</button></form>{% endif %}
+</section>
+{% endif %}
+{% if tls_status.busy %}<form method="post" action="{{ url_for('https_control') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ tls_status.job.id }}"><button class="button" name="action" value="cancel">Cancel certificate request</button></form>{% endif %}
+<form method="post" action="{{ url_for('https_action') }}">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<fieldset {% if tls_status.busy or ch or not tls_status.installed %}disabled{% endif %}>
+<legend>Use saved HTTPS setup</legend>
+<div class="stack-buttons"><button class="button" name="action" value="staging">Test issuance (staging)</button><button class="button primary" name="action" value="issue">Issue trusted certificate</button>{% if tls_status.expires or tls_status.certificate_error %}<button class="button" name="action" value="renew">Check renewal</button>{% endif %}</div>
+</fieldset>
+</form>
+{% if tls_status.expires %}<p><a href="https://{{ tls_status.config.domain }}/settings">Open HTTPS Settings ↗</a></p>{% endif %}
+<p class="hint">Progress updates automatically while a request runs. <a href="{{ url_for('settings', _anchor='https') }}">Refresh status</a></p>
+</div>

@@ -1,0 +1,25 @@
+{% set appearance = task_appearance(name, task) %}
+<div class="task-appearance tone-{{ appearance.color }}" id="task-appearance">
+  <fieldset>
+    <legend>Task color</legend>
+    <div class="appearance-options">
+      {% for value, label in task_colors.items() %}
+      <label class="appearance-option tone-{{ value }}">
+        <input type="radio" name="color" value="{{ value }}" {{ 'checked' if appearance.color == value }} required>
+        <span class="appearance-choice"><span class="color-swatch" aria-hidden="true"></span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Task icon</legend>
+    <div class="appearance-options">
+      {% for value, label in task_icons.items() %}
+      <label class="appearance-option">
+        <input type="radio" name="icon" value="{{ value }}" {{ 'checked' if appearance.icon == value }} required>
+        <span class="appearance-choice">{{ icon(value) }}{{ label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+</div>

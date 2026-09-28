@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-heading"><div><h1>Overview</h1></div><a class="button primary" href="{{ url_for('task_edit') }}">＋ Create task</a></div>
+<div class="stats" id="overview-stats">{% include 'overview_stats.html' %}</div>
+<div class="dashboard-grid"><section id="overview-tasks">{% include 'overview_tasks.html' %}</section>
+<aside class="right-column">{% include 'overview_numpad.html' %}</aside></div>
+{% endblock %}

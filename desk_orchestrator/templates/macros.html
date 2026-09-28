@@ -1,0 +1,11 @@
+{% from 'icons.html' import icon %}
+{% macro hidden(cfg) %}<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="revision" value="{{ cfg.revision }}">{% endmacro %}
+{% macro task_card(name, task, cfg) %}
+{% set appearance = task_appearance(name, task) %}
+<article class="task-card tone-{{ appearance.color }} {{ 'is-active-task' if active_task is defined and active_task == name }}" data-linked-task="{{ name }}" data-task-label="{{ task.label }}">
+  <div class="card-top"><span class="task-icon">{{ icon(appearance.icon) }}</span><span class="pill green">Saved</span></div>
+  <h3>{{ task.label }}</h3>
+  <p>{{ task.steps|length }} ordered actions <span class="middot">·</span> {{ 'Keeps active task' if task.get('keep_active_task', false) else 'Saved sequence' }}</p>
+  <div class="card-bottom"><span>{% for key, value in cfg.keypad.bindings.items() if value == name %}<kbd>{{ keys.get(key, key) }}</kbd>{% else %}<span class="muted">No key assigned</span>{% endfor %}</span><div><a href="{{ url_for('preview', name=name) }}">Preview</a><a class="arrow-link" aria-label="Edit {{ task.label }}" href="{{ url_for('task_edit', name=name) }}">↗</a></div></div>
+</article>
+{% endmacro %}

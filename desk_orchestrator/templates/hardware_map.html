@@ -1,0 +1,39 @@
+{% extends 'base.html' %}{% block title %}Hardware · Desk Orchestrator{% endblock %}{% block section %}Hardware{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='hardware_map.css') }}">{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">THE DEVICES BEHIND YOUR DESK</div><h1>Hardware</h1><p id="map-intro">Your devices, how they connect, and what each task switches. Select a device to see and send its commands, or choose <strong>Edit</strong> to add hardware, ports, and connections.</p></div>
+<div class="map-modes"><button type="button" class="button primary" id="map-edit">{{ icon('settings') }} Edit</button></div></div>
+<section id="hardware-map" class="hardware-map no-inspector" data-mode="operate"
+  data-model-url="{{ url_for('map_model') }}" data-save-url="{{ url_for('map_save') }}"
+  data-run-url="{{ url_for('map_run') }}" data-state-url="{{ url_for('virtual_numpad_state') }}"
+  data-press-url="{{ url_for('virtual_numpad_press') }}" data-hardware-url="{{ url_for('hardware_edit', name='__ID__') }}"
+  data-ir-url="{{ url_for('ir_commands', name='__ID__') }}" data-numpad-url="{{ url_for('numpad') }}" data-select="{{ selected }}"
+  data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
+  <script type="application/json" id="map-model">{{ model|tojson }}</script>
+  <div class="map-toolbar" id="map-toolbar" hidden>
+    <div class="map-edit-bar" id="map-edit-bar" role="toolbar" aria-label="Edit hardware" hidden>
+      <span class="pill neutral" id="map-dirty" role="status">No unsaved changes</span>
+      <button type="button" class="button small" id="map-add">＋ Add hardware</button>
+      <button type="button" class="button small" id="map-arrange">Auto-arrange</button>
+      <span class="map-edit-spacer" aria-hidden="true"></span>
+      <button type="button" class="button small" id="map-discard">Discard changes</button>
+      <button type="button" class="button primary small" id="map-save">Save</button>
+      <button type="button" class="button small" id="map-exit">Exit edit mode</button>
+    </div>
+  </div>
+  <div class="map-layout">
+    <div class="panel map-canvas-panel">
+      <div class="map-canvas" id="map-canvas">
+        <svg id="map-svg" xmlns="http://www.w3.org/2000/svg" aria-labelledby="map-svg-title"><title id="map-svg-title">Hardware connection diagram</title></svg>
+      </div>
+      <div class="map-footer"><div class="map-legend" id="map-legend" aria-label="Signal types"></div>
+        <div class="map-zoom" role="group" aria-label="Zoom"><button type="button" class="button small" id="map-zoom-out" aria-label="Zoom out">−</button><span id="map-zoom-level" aria-live="polite">100%</span><button type="button" class="button small" id="map-zoom-in" aria-label="Zoom in">＋</button><button type="button" class="button small" id="map-zoom-fit">Fit</button></div></div>
+    </div>
+    <aside class="panel map-inspector" id="map-inspector" aria-label="Details" hidden></aside>
+  </div>
+  <p id="map-status" class="hint map-status" role="status" aria-live="polite">Connecting to controller…</p>
+  <p id="map-result" class="hint map-result" role="status" aria-live="polite"></p>
+</section>
+<noscript><p class="notice error">Enable JavaScript to use the Hardware page.</p></noscript>
+<script src="{{ url_for('static', filename='hardware_map.js') }}" defer></script>
+{% endblock %}

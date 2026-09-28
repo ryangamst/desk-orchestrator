@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block section %}Connect SmartThings{% endblock %}
+{% block content %}
+<section class="panel">
+<h1>Connecting to SmartThings</h1>
+<p>Opening Samsung authorization in this tab. If you are not redirected, use the button below.</p>
+<a id="smartthings-authorize" class="button primary" href="{{ destination }}" rel="noreferrer">Continue to SmartThings</a>
+<p class="hint">After authorizing, you will return to Settings. Complete this step within ten minutes.</p>
+<p><a href="{{ url_for('settings') }}">Back to Settings</a></p>
+</section>
+<script src="{{ url_for('static', filename='oauth_authorize.js') }}" defer></script>
+{% endblock %}

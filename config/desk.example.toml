@@ -1,0 +1,175 @@
+version = 1
+
+[runtime]
+directory = "../.runtime"
+
+[keypad]
+# Use input-devices and /dev/input/by-id to identify the NUMPAD, not your keyboard.
+device = "/dev/input/by-id/REPLACE_WITH_NUMPAD-event-kbd"
+grab = true
+
+[keypad.bindings]
+KEY_KP1 = "personal"
+KEY_KP2 = "steam_deck"
+KEY_KP3 = "work"
+KEY_KPENTER = "lps"
+KEY_KPPLUS = "cds"
+
+[kvm]
+# Use transport = "ch9328" and a /dev/serial/by-id/... device for the Adafruit bridge.
+# See docs/ch9328.md; the bridge supports keyboard reports, not media Consumer Control.
+transport = "gadget"
+device = "/dev/hidg0"
+confirmed = false
+key_delay = 0.08
+
+[smartthings]
+token_env = "SMARTTHINGS_TOKEN"
+# For durable OAuth access, configure an absolute token file and client env vars.
+# token_file = "/var/lib/desk-orchestrator/smartthings-tokens.json"
+# client_id_env = "SMARTTHINGS_CLIENT_ID"
+# client_secret_env = "SMARTTHINGS_CLIENT_SECRET"
+# token_endpoint = "/v1/oauth/token"
+
+# G8: directly wired to PC DisplayPort and Mac HDMI 1.
+# These capability/input strings are EXAMPLES. Discover the actual device values.
+[monitors.g8]
+device_id = ""
+confirmed = false
+component = "main"
+capability = "samsungvd.mediaInputSource"
+command = "setInputSource"
+attribute = "inputSource"
+verify_timeout = 15
+[monitors.g8.inputs]
+displayport = "REPLACE_WITH_DISCOVERED_DP_VALUE"
+hdmi1 = "REPLACE_WITH_DISCOVERED_HDMI1_VALUE"
+
+# G9: connected to the KVM's DisplayPort output. No monitor-input command needed
+# for these scenes. Add a monitor step if you later use another G9 input.
+[monitors.g9]
+device_id = ""
+confirmed = false
+component = "main"
+capability = "samsungvd.mediaInputSource"
+command = "setInputSource"
+attribute = "inputSource"
+[monitors.g9.inputs]
+displayport = "REPLACE_WITH_DISCOVERED_DP_VALUE"
+
+[ir]
+executable = "irsend"
+socket = "/run/lirc/lircd"
+receiver = "/dev/desk-ir-rx"
+
+[ir.devices.oppo]
+remote = "oppo_ha1"
+allow_approximate_volume = false
+
+# Symbolic LIRC names only: capture/verify actual IR waveforms on the Pi.
+[ir.devices.oppo.commands.power_on]
+verified = false
+discrete = true
+sequence = [{ key = "KEY_POWER_ON" }]
+[ir.devices.oppo.commands.usb]
+verified = false
+sequence = [{ key = "KEY_USB" }]
+[ir.devices.oppo.commands.optical]
+verified = false
+sequence = [{ key = "KEY_OPTICAL" }]
+[ir.devices.oppo.commands.rca]
+verified = false
+sequence = [{ key = "KEY_RCA" }]
+
+# The HA-1 has a motorized analog potentiometer, NOT fixed digital dB steps.
+# No invented pulse counts: populate only after measuring an independent
+# reference + target sequence, and explicitly accepting approximate volume.
+[[ir.devices.oppo.volume_presets]]
+db = -32.0
+calibrated = false
+starts_from_known_reference = false
+sequence = []
+[[ir.devices.oppo.volume_presets]]
+db = 6.0
+calibrated = false
+starts_from_known_reference = false
+sequence = []
+
+[ir.devices.amplifier]
+remote = "smsl_da9"
+[ir.devices.amplifier.commands.power_on]
+verified = false
+discrete = true
+sequence = [{ key = "KEY_POWER_ON" }]
+[ir.devices.amplifier.commands.power_off]
+verified = false
+discrete = true
+sequence = [{ key = "KEY_POWER_OFF" }]
+
+# Power the speaker amp down during input/volume changes, then on last.
+# This requires REAL discrete power codes; a toggle is not an on/off command.
+# Personal Computing preserves the requested omission of HA-1 power-on.
+[scenes.personal]
+label = "Personal Computing"
+steps = [
+  { kind = "ir", device = "amplifier", command = "power_off" },
+  { kind = "wait", seconds = 1.0 },
+  { kind = "kvm", port = 1 },
+  { kind = "monitor", device = "g8", input = "displayport" },
+  { kind = "ir", device = "oppo", command = "usb" },
+  { kind = "volume", device = "oppo", db = -32.0 },
+  { kind = "ir", device = "amplifier", command = "power_on" },
+]
+
+[scenes.work]
+label = "Work Computing"
+steps = [
+  { kind = "ir", device = "amplifier", command = "power_off" },
+  { kind = "wait", seconds = 1.0 },
+  { kind = "kvm", port = 3 },
+  { kind = "monitor", device = "g8", input = "hdmi1" },
+  { kind = "ir", device = "oppo", command = "power_on" },
+  { kind = "wait", seconds = 2.0 },
+  { kind = "ir", device = "oppo", command = "usb" },
+  { kind = "volume", device = "oppo", db = -32.0 },
+  { kind = "ir", device = "amplifier", command = "power_on" },
+]
+
+# Only port 2 is confirmed. USB / -32 dB / audio power are proposed defaults.
+# G8 is unchanged because the Steam Deck uses the KVM-connected G9.
+[scenes.steam_deck]
+label = "Steam Deck (audio settings provisional)"
+steps = [
+  { kind = "ir", device = "amplifier", command = "power_off" },
+  { kind = "wait", seconds = 1.0 },
+  { kind = "kvm", port = 2 },
+  { kind = "ir", device = "oppo", command = "power_on" },
+  { kind = "wait", seconds = 2.0 },
+  { kind = "ir", device = "oppo", command = "usb" },
+  { kind = "volume", device = "oppo", db = -32.0 },
+  { kind = "ir", device = "amplifier", command = "power_on" },
+]
+
+[scenes.cds]
+label = "Listen to CDs"
+steps = [
+  { kind = "ir", device = "amplifier", command = "power_off" },
+  { kind = "wait", seconds = 1.0 },
+  { kind = "ir", device = "oppo", command = "power_on" },
+  { kind = "wait", seconds = 2.0 },
+  { kind = "ir", device = "oppo", command = "optical" },
+  { kind = "volume", device = "oppo", db = -32.0 },
+  { kind = "ir", device = "amplifier", command = "power_on" },
+]
+
+[scenes.lps]
+label = "Listen to LPs"
+steps = [
+  { kind = "ir", device = "amplifier", command = "power_off" },
+  { kind = "wait", seconds = 1.0 },
+  { kind = "ir", device = "oppo", command = "power_on" },
+  { kind = "wait", seconds = 2.0 },
+  { kind = "ir", device = "oppo", command = "rca" },
+  { kind = "volume", device = "oppo", db = 6.0 },
+  { kind = "ir", device = "amplifier", command = "power_on" },
+]

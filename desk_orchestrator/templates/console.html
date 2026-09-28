@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Developer console · Desk Orchestrator{% endblock %}
+{% block section %}Settings{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>Settings</h1></div></div>
+{% include 'settings_navigation.html' %}
+<div class="page-heading"><div><div class="eyebrow">INPUT → TASK → HARDWARE</div><h2>Developer console</h2><p>Follow numpad events and commands on <strong>{{ host }}</strong>.</p></div><a class="button" href="{{ url_for('numpad') }}">Configure numpad</a></div>
+<div id="developer-console" data-events-url="{{ url_for('console_events') }}">
+  <section class="panel console-listeners"><h2>Input listeners</h2><div id="console-listeners">Checking listener status…</div><p class="hint">These are the controller’s Linux input events. Press keys on the connected numpad; typing in this browser is not captured. LIVE listeners can operate hardware as usual.</p><p class="hint">KEY_VOLUMEUP / KEY_VOLUMEDOWN under Input received are incoming wheel signals. Follow their trace to Control mapped to task command and the LIRC transmission to see which device command was sent. An Input received event alone does not mean a command was sent.</p></section>
+  <div class="console-toolbar">
+    <label>Search events<input id="console-search" type="search" placeholder="Key, device, command, or trace…"></label>
+    <label>Category<select id="console-category"><option value="">All events</option>{% for kind in ['input', 'task', 'control', 'command', 'transport', 'listener'] %}<option value="{{ kind }}">{{ kind|capitalize }}</option>{% endfor %}</select></label>
+    <label>Level<select id="console-level"><option value="">All levels</option><option value="warning">Warnings + errors</option><option value="error">Errors only</option></select></label>
+    <button type="button" class="button" id="console-pause" aria-pressed="false">Pause</button>
+    <button type="button" class="button" id="console-clear">Clear view</button>
+    <button type="button" class="button" id="console-export">Export view</button>
+  </div>
+  <div class="console-meta"><span id="console-connection" role="status">Connecting…</span><span id="console-count"></span></div>
+  <p id="console-gap" class="notice" hidden>Older events expired from the rolling log. This view may contain an incomplete trace.</p>
+  <div id="console-events" class="console-events" aria-label="Controller event log"></div>
+  <p class="hint">Newest events first · Last 2,000 events retained on disk · Select a trace to follow one input through execution. “Sent” confirms the adapter completed; IR and KVM cannot verify the physical response. Monitor input confirmation uses SmartThings feedback.</p>
+</div>
+<details class="panel console-help"><summary>Troubleshoot missing events</summary><p>Restart the web app and numpad service after installing this update. Both must use this configuration and its shared runtime directory:</p><pre>{{ config_path }}</pre><p>If the listener is absent or stale, check the controller service and its input permissions. If it is listening but no events appear, verify the selected numpad interface. Dial and slider signals may use a separate interface.</p><p>Use a dry-run listener when testing mappings without sending commands. Opening this console does not start or restart a listener. Clear view hides events in this browser; it does not erase the shared log.</p></details>
+<noscript><p class="notice error">Enable JavaScript to view the live developer console.</p></noscript>
+{% endblock %}

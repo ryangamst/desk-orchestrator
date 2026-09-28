@@ -1,0 +1,4 @@
+<nav class="settings-navigation" aria-label="Settings navigation">
+  <a href="{{ url_for('settings') }}"{% if request.endpoint == 'settings' %} class="active" aria-current="page"{% endif %}>General</a>
+  <a href="{{ url_for('developer_console') }}"{% if request.endpoint == 'developer_console' %} class="active" aria-current="page"{% endif %}>Developer console</a>
+</nav>
