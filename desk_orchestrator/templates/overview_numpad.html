@@ -1,10 +1,10 @@
 {% set controls = cfg.scenes[active_task].get('controls', {}) if active_task else {} %}
 {% set placed_controls = numpad_layout.get('controls', [])|map(attribute='id')|list if numpad_layout else [] %}
 <section class="panel numpad-panel" id="virtual-numpad" data-layout-signature="{{ layout_signature }}" data-state-url="{{ url_for('virtual_numpad_state') }}" data-press-url="{{ url_for('virtual_numpad_press') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
-  <div class="section-heading"><h2>Virtual numpad</h2><span class="pill amber">Live control</span></div>
+  <div class="section-heading"><h2>Virtual numpad</h2><span class="pill teal">Live control</span></div>
   <p class="hint">Press a mapped key to run its task or send the active task’s keyboard or IR command.</p>
-  <p class="hint">Active task: <strong id="virtual-active-task">{{ cfg.scenes[active_task].label if active_task else 'None' }}</strong></p>
-  <div class="numpad-housing {{ 'custom-housing' if numpad_layout }}" role="group" aria-label="Live virtual numpad" aria-describedby="virtual-numpad-note">
+  <p class="virtual-active-task" role="status" aria-live="polite"><span>Active task</span><strong id="virtual-active-task">{{ cfg.scenes[active_task].label if active_task else 'None' }}</strong></p>
+  <div class="numpad-housing {{ 'custom-housing' if numpad_layout }}" role="group" aria-label="Live virtual numpad">
     <div class="numpad {{ 'custom-numpad' if numpad_layout }}" {% if numpad_layout %}data-custom-layout="{{ numpad_layout|tojson|forceescape }}"{% endif %}>
       {% for key in (keys if numpad_layout else ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT']) %}
       {% set mapped = cfg.keypad.bindings.get(key) %}
@@ -27,7 +27,7 @@
       </div>
       {% endif %}
       {% if 'slider' not in placed_controls %}
-      <input type="range" class="virtual-slider" id="virtual-slider" min="0" max="100" step="1" value="50" disabled aria-label="Slider movement" aria-describedby="virtual-numpad-note">
+      <input type="range" class="virtual-slider" id="virtual-slider" min="0" max="100" step="1" value="50" disabled aria-label="Slider movement">
       {% endif %}
       <span class="numpad-badge" aria-hidden="true">d<span>.</span></span>
     </div>
@@ -44,8 +44,6 @@
   </div>
   <p id="virtual-input-status" class="hint virtual-input-status" role="status" aria-live="polite">Connecting to controller…</p>
   <p id="virtual-input-result" class="hint" role="status" aria-live="polite"></p>
-  <p class="hint illustration-note" id="virtual-numpad-note">Controls send the active task’s mapped commands. Slider position is a gesture control, not measured volume. Fast inputs are ignored while busy.</p>
-  <div class="virtual-numpad-links"><a href="{{ url_for('numpad') }}">Configure numpad ↗</a><a href="{{ url_for('developer_console') }}">Activity ↗</a></div>
   <noscript><p class="notice error">Enable JavaScript to operate the virtual numpad.</p></noscript>
 </section>
 <script src="{{ url_for('static', filename='virtual_numpad.js') }}" defer></script>

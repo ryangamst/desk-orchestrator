@@ -307,40 +307,6 @@ if (taskForm) {
   });
 }
 
-// This checks the configuration server, not physical hardware power or the listener.
-const connectionStatus = document.getElementById("connection-status");
-if (connectionStatus) {
-  const label = connectionStatus.querySelector(".connection-state");
-  const setConnection = (state, text) => {
-    connectionStatus.dataset.state = state;
-    label.textContent = text;
-  };
-  async function checkConnection() {
-    const abort = new AbortController();
-    const timeout = setTimeout(() => abort.abort(), 4000);
-    try {
-      const response = await fetch(connectionStatus.dataset.healthUrl, {
-        cache: "no-store", credentials: "same-origin", signal: abort.signal,
-      });
-      if (response.redirected || response.status === 401 || response.status === 403) {
-        setConnection("unknown", "Session expired · sign in again");
-      } else if (!response.ok) {
-        setConnection("offline", "Unavailable");
-      } else {
-        const data = await response.json();
-        if (data.status === "online") setConnection("online", "Online");
-        else setConnection("unknown", "Status unavailable");
-      }
-    } catch {
-      setConnection("offline", "Disconnected");
-    } finally {
-      clearTimeout(timeout);
-      setTimeout(checkConnection, 10000);
-    }
-  }
-  checkConnection();
-}
-
 if (taskForm) {
   const controlInventory = JSON.parse(document.getElementById("task-data").textContent).inventory;
   document.querySelectorAll("[data-control-mapping]").forEach(group => {

@@ -7,15 +7,16 @@
 #numpad-lighting legend{padding:0 6px;font-weight:600}
 #numpad-lighting button:disabled{opacity:.5;cursor:not-allowed}
 :root{--bg:#111119;--dark:#15141e;--surface:#201f2b;--surface-low:#171620;--surface-raised:#302e3f;--line:#ffffff18;--line-strong:#777084;--control-line:#6c667d;--muted:#b9b5ca;--radius:16px}
-body{background:radial-gradient(ellipse at 80% 0,#49316420,transparent 55%),var(--bg)}
+body{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:radial-gradient(ellipse at 80% 0,#49316420,transparent 55%),var(--bg)}
 .ui-icon{width:22px;height:22px;flex:none;vertical-align:middle}
 .sidebar{background:linear-gradient(180deg,#1c182a,#13131c 80%);border-right:1px solid var(--line)}
 .brand-mark{box-shadow:0 4px 22px #b487ff24,inset 0 1px 0 #ffffff50}
 .sidebar nav a{border:1px solid transparent;transition:background .18s,border-color .18s,color .18s}
 .sidebar nav a.active{background:linear-gradient(100deg,#a77dec30,#a77dec10);border-color:#b38aef2b;color:#e9daff;box-shadow:inset 3px 0 #c4a6ff}
 .sidebar nav .ui-icon{width:19px;height:19px}
-.topbar{background:#17151e90}.topbar strong{color:var(--ink)}
-main{padding-top:32px}h1{font-weight:650;letter-spacing:-1.5px;font-size:40px}.page-heading{margin-bottom:26px}.page-heading p{font-size:14px}
+.workspace{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{flex-shrink:0;background:#17151e90}.topbar strong{color:var(--ink)}
+main{flex:1;width:100%;margin:0 auto;padding-top:32px}h1{font-weight:650;letter-spacing:-1.5px;font-size:40px}.page-heading{margin-bottom:26px}.page-heading p{font-size:14px}
 .heading-actions{display:flex;gap:10px;flex-wrap:wrap}
 .eyebrow{font-size:10px;letter-spacing:1.6px;color:var(--accent);margin-bottom:10px}.page-heading .eyebrow{color:var(--muted)}
 h2{font-size:19px}label{font-size:13px}small,.hint{font-size:12px;line-height:1.65}
@@ -63,7 +64,7 @@ input,select,textarea{border-radius:9px;background:#14131d;min-height:42px}input
 .control-input-panel>p{max-width:85ch;font-size:13px}.control-input-panel .technical-details>summary{margin:0}.control-input-panel .technical-details[open]>summary{margin-bottom:16px}.control-mapping{background:linear-gradient(145deg,#c4a6ff08,transparent)}
 .usb-inventory{margin-top:24px}.usb-device-grid{gap:14px}.usb-device{background:var(--surface-low);box-shadow:none;padding:20px}
 .settings-grid{gap:20px}.settings-grid p{font-size:13px}.settings-stack{gap:20px}.settings-navigation a{font-size:13px}.setup-banner{background:linear-gradient(90deg,#21334880,#1c253180);border-color:#acd4ff35}.setup-banner strong{font-size:13px}.setup-banner p,.setup-banner a{font-size:12px}
-footer{font-size:9px}.login-card{background:radial-gradient(ellipse at top,#c4a6ff10,transparent 70%),var(--surface)}
+footer{width:100%;flex-shrink:0;font-size:9px}.login-card{background:radial-gradient(ellipse at top,#c4a6ff10,transparent 70%),var(--surface)}
 @media(min-width:1700px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1150px){.dashboard-grid{grid-template-columns:minmax(0,1fr) 280px;gap:18px}.task-card{padding:18px 18px 0}.task-card h3{font-size:17px}.task-card .card-top{gap:7px}.pill{font-size:10px}.task-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:1000px){.dashboard-grid{grid-template-columns:1fr}.right-column{display:block}.numpad-panel{max-width:380px;margin:auto}.hardware-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -80,7 +81,7 @@ footer{font-size:9px}.login-card{background:radial-gradient(ellipse at top,#c4a6
 .virtual-slider::-moz-range-track{width:8px;background:#0c0c11;border:1px solid var(--line-strong);border-radius:8px}
 .virtual-slider::-moz-range-thumb{width:30px;height:18px;border:1px solid #eeedf3;border-radius:4px;background:#c4bed4}
 .virtual-slider:disabled{cursor:default}.numpad-wheel[aria-disabled=true]{cursor:default}.numpad-wheel .wheel-face{transition:transform .12s}
-.virtual-control-rows{margin:14px 0}.virtual-control-row{display:grid;grid-template-columns:minmax(0,1fr) 36px 36px;gap:7px;padding:11px 0;border-top:1px solid var(--line);align-items:center}.virtual-control-row strong{font-size:12px}.virtual-control-row small{display:block;font-size:11px;overflow-wrap:anywhere}.virtual-control-row .button{min-height:36px;padding:0;font-size:19px}.virtual-control-row button:disabled{cursor:default}.virtual-input-status{margin:10px 0!important}.virtual-numpad-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;font-size:11px}#virtual-input-result{overflow-wrap:anywhere;font-size:12px}#virtual-input-result:empty{display:none}#virtual-input-result.error-text{color:var(--red)}
+.virtual-control-rows{margin:14px 0}.virtual-control-row{display:grid;grid-template-columns:minmax(0,1fr) 36px 36px;gap:7px;padding:11px 0;border-top:1px solid var(--line);align-items:center}.virtual-control-row strong{font-size:12px}.virtual-control-row small{display:block;font-size:11px;overflow-wrap:anywhere}.virtual-control-row .button{min-height:36px;padding:0;font-size:19px}.virtual-control-row button:disabled{cursor:default}.virtual-input-status{margin:10px 0!important}.virtual-input-status:empty{display:none}#virtual-input-result{overflow-wrap:anywhere;font-size:12px}#virtual-input-result:empty{display:none}#virtual-input-result.error-text{color:var(--red)}
 /* Task command picker shares the Overview's numpad housing and key geometry. */
 .key-command-layout{display:grid;grid-template-columns:minmax(250px,340px) minmax(0,1fr);gap:32px;align-items:start}
 .key-command-editor [hidden]{display:none!important}
@@ -104,3 +105,9 @@ footer{font-size:9px}.login-card{background:radial-gradient(ellipse at top,#c4a6
 
 .active-task-mappings{border:0;padding:0;margin:0;min-width:0}
 .active-task-mappings[hidden]{display:none!important}
+
+/* Overview focus and live-control accent. */
+.pill.teal{background:rgba(125,218,203,.12);color:#7ddacb}
+.numpad-panel .virtual-active-task{display:flex;flex-direction:column;gap:4px;margin:0 0 22px;padding:12px 14px;border:1px solid #c4a6ff30;border-left:3px solid var(--accent);border-radius:9px;background:#c4a6ff0c}
+.virtual-active-task>span{font-size:11px;font-weight:550;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.virtual-active-task>strong{font-size:18px;line-height:1.35;font-weight:650;color:var(--ink);overflow-wrap:anywhere}

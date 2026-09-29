@@ -56,7 +56,7 @@
     setText(status, !online ? 'Controller unavailable. Controls are disabled.' :
       pending ? 'Sending input… Additional presses are not queued.' :
       stale ? 'Updating mappings in the background…' :
-      state?.busy ? 'Controller busy. Inputs are not queued.' : 'Ready · presses operate real hardware');
+      state?.busy ? 'Controller busy. Inputs are not queued.' : '');
     if (state) {
       setText(activeLabel, state.active_label);
       for (const name of ['dial', 'slider']) {
