@@ -15,14 +15,14 @@ from collections import deque
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, flash, redirect, render_template as flask_render_template, request, send_file, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .config_store import ConfigStore, KEYS, METHODS, TYPES, text
 from .core import DeskError, Runner, atomic_json, exclusive, require
 from .hardware import Hardware
 from .smartthings import segment
-from .usb_devices import scan_usb, selected_input, save_selection, match_input
+from .usb_devices import scan_usb, selected_input, save_selection, match_input, keyboard_inputs
 from .controls import CONTROL_NAMES, validate_sources, validate_mappings, active_scene
 from .diagnostics import EventLog
 from . import ir_learning
@@ -32,7 +32,20 @@ from . import virtual_numpad
 from . import hardware_map
 from .key_commands import COMMANDS, SHORTCUT_KEYS, command_label, editable_sequence, is_ir_binding, reserved_keys
 from . import gmmk_rgb
+from . import numpad_profiles, key_learning
 from .appearance import COLORS, ICONS, task_appearance
+
+
+def render_template(template, **context):
+    # Derive layout data from the same revision as the page, including partials.
+    cfg = context.get("cfg")
+    if cfg is not None:
+        keys = numpad_profiles.labels(cfg)
+        context.update(keys=keys, numpad_layout=numpad_profiles.layout(cfg),
+                       layout_signature=numpad_profiles.geometry_signature(cfg),
+                       profile_id=numpad_profiles.active_id(cfg),
+                       active_bindings={k: v for k, v in cfg["keypad"]["bindings"].items() if k in keys})
+    return flask_render_template(template, **context)
 
 
 def set_password(directory, password):
@@ -205,7 +218,7 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
                     "tasks": render_template("overview_tasks.html", **values),
                     "mappings": {key: dict(task=name, label=cfg["scenes"][name]["label"],
                                             **task_appearance(name, cfg["scenes"][name]))
-                                 for key, name in cfg["keypad"]["bindings"].items()},
+                                 for key, name in cfg["keypad"]["bindings"].items() if key in numpad_profiles.labels(cfg)},
                 }
             return state
         except (DeskError, OSError, ValueError):
@@ -250,6 +263,8 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
     def numpad():
         cfg = store.read()
         snapshot = scan_usb()
+        if numpad_profiles.active_id(cfg) != "gmmk":
+            snapshot["candidates"] = keyboard_inputs(snapshot)
         error = None
         if request.method == "POST":
             try:
@@ -260,12 +275,12 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
                 elif request.form.get("section") == "controls":
                     sources = control_sources_from_form(cfg)
                     store.update(revision(), lambda config: config["keypad"].update(controls=sources))
-                    flash("Dial and slider inputs saved. Restart the numpad service, then assign their actions in each task.")
+                    flash("Dial and slider inputs saved. The updated listener reconnects automatically. Assign their actions in each task.")
                 else:
                     store.update(revision(), lambda config: save_selection(
                         config, request.form.get("device_choice", ""), request.form.get("manual_path", "").strip(),
                         "grab" in request.form, snapshot))
-                    flash("Numpad device saved. Restart the numpad service to use the selected USB input. Your key mappings are unchanged.")
+                    flash("Numpad device saved. The updated listener reconnects automatically. Your key mappings are unchanged.")
                 return redirect(url_for("numpad"))
             except DeskError as exc:
                 error = str(exc)
@@ -283,6 +298,76 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
                                control_inputs=control_inputs, suggested_input=suggested_input,
                                chosen=request.form.get("device_choice", chosen),
                                form_revision=request.form.get("revision", cfg["revision"])), 422 if error else 200
+
+    @app.get("/numpad/profiles/new")
+    @app.get("/numpad/profiles/<name>")
+    def numpad_profile(name=None):
+        cfg = store.read()
+        profile = cfg["keypad"].get("profiles", {}).get(name)
+        if name is not None and profile is None:
+            abort(404)
+        name = name or "custom_" + secrets.token_hex(6)
+        connection = cfg["keypad"] if numpad_profiles.active_id(cfg) == name else cfg["keypad"].get("profile_connections", {}).get(name, {})
+        snapshot = scan_usb()
+        inputs = list({item["selection_path"]: item for item in [*keyboard_inputs(snapshot),
+                       *(item for device in snapshot["devices"] for item in device["inputs"]) ]}.values())
+        assignments = {}
+        for key, task in cfg["keypad"]["bindings"].items():
+            assignments.setdefault(key, []).append(cfg["scenes"][task]["label"])
+        for task in cfg["scenes"].values():
+            for key in task.get("key_commands", {}):
+                assignments.setdefault(key, []).append(task["label"])
+        return render_template("numpad_editor.html", cfg=cfg, editing_profile=name,
+                               editor_profile=profile or dict(name="Custom numpad", width=4, height=5, keys=[]),
+                               connection=connection, inputs=inputs, assignments=assignments)
+
+    @app.post("/numpad/profiles/<name>/save")
+    def save_numpad_profile(name):
+        try:
+            from .config_store import identifier
+            from .usb_devices import valid_input_path
+            identifier(name)
+            require(name != "gmmk", "The built-in GMMK layout cannot be edited.")
+            profile = parse("profile")
+            sources = parse("controls") if "controls" in request.form else None
+            if sources is not None:
+                validate_sources(sources, check_signal_codes=True)
+            device = request.form.get("device", "").strip()
+            require(not device or valid_input_path(device), "Choose a valid input device path.")
+            selected = match_input(scan_usb(), device) if device else None
+            def edit(cfg):
+                old_controls = {item["id"] for item in cfg["keypad"].get("profiles", {}).get(name, {}).get("controls", [])}
+                numpad_profiles.save(cfg, name, profile, remove_assignments=request.form.get("remove_assignments") == "yes")
+                connection = cfg["keypad"] if numpad_profiles.active_id(cfg) == name else cfg["keypad"].setdefault("profile_connections", {}).setdefault(name, {})
+                if sources is not None:
+                    connection["controls"] = sources
+                for removed in old_controls - {item["id"] for item in profile.get("controls", [])}:
+                    connection.get("controls", {}).pop(removed, None)
+                connection.update(device=device, grab=request.form.get("grab") == "yes")
+                if selected:
+                    connection["identity"] = {key: selected[key] for key in ("name", "vendor_id", "product_id", "serial", "port")}
+                else:
+                    connection.pop("identity", None)
+            cfg = store.update(revision(), edit)
+            return dict(ok=True, revision=cfg["revision"], url=url_for("numpad_profile", name=name))
+        except DeskError as exc:
+            return {"error": str(exc)}, 409
+
+    @app.post("/numpad/profiles/activate")
+    def activate_numpad_profile():
+        store.update(revision(), lambda cfg: numpad_profiles.activate(cfg, request.form.get("profile", "")))
+        flash("Numpad profile selected. The listener will reconnect automatically.")
+        return redirect(url_for("numpad"))
+
+    @app.post("/api/numpad/learn")
+    def learn_numpad_key():
+        try:
+            require(request.form.get("action") == "cancel" or revision() == store.read()["revision"], "Configuration changed. Save or reload the layout before learning.")
+            return key_learning.request(store.directory, hashlib.sha256(session["csrf"].encode()).hexdigest(),
+                                        request.form.get("action"), token=request.form.get("token", ""),
+                                        device=request.form.get("device", ""), revision=revision(), signal=request.form.get("signal", "key"))
+        except (DeskError, OSError) as exc:
+            return {"error": str(exc)}, 409
 
     @app.post("/numpad/lighting/apply")
     def apply_numpad_lighting():
@@ -498,7 +583,7 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
         if name is not None and name not in cfg["scenes"]:
             abort(404)
         task = cfg["scenes"].get(name, {"label": "", "steps": [{"kind": "wait", "seconds": 1}]})
-        key = next((k for k, v in cfg["keypad"]["bindings"].items() if v == name), "")
+        key = next((k for k, v in cfg["keypad"]["bindings"].items() if v == name and k in numpad_profiles.labels(cfg)), "")
         error = None
         if request.method == "POST":
             try:
@@ -534,7 +619,7 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
                     task["key_commands"] = {}
                 elif "key_commands_present" in request.form:
                     task["key_commands"] = {}
-                    for code in KEYS:
+                    for code in numpad_profiles.labels(cfg):
                         command = request.form.get(f"command_{code}")
                         if command:
                             task["key_commands"][code] = command

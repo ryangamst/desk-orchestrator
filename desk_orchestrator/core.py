@@ -82,6 +82,8 @@ def validate_config(config, base):
             validate_step(step)
         validate_mappings(scene.get("controls", {}))
     validate_sources(config.get("keypad", {}).get("controls", {}))
+    from .numpad_profiles import validate as validate_profiles
+    validate_profiles(config)
     from .key_commands import validate_bindings
     for scene in config["scenes"].values():
         validate_bindings(scene.get("key_commands", {}), config)
@@ -135,6 +137,7 @@ class Runner:
     def issues(self, name, *, probe=False, passed=None):
         from .controls import check_mapping
         from .key_commands import binding_step
+        from .numpad_profiles import labels
         scene = self.scene(name)
         problems = []
         for i, step in enumerate(scene["steps"], 1):
@@ -159,6 +162,8 @@ class Runner:
             except (DeskError, OSError) as exc:
                 problems.append(f"{control}: {exc}")
         for key, command in scene.get("key_commands", {}).items():
+            if key not in labels(self.config):
+                continue
             try:
                 step = binding_step(command)
                 self.hardware.check(step, probe=probe)

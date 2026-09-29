@@ -1,11 +1,12 @@
 {% set controls = cfg.scenes[active_task].get('controls', {}) if active_task else {} %}
-<section class="panel numpad-panel" id="virtual-numpad" data-state-url="{{ url_for('virtual_numpad_state') }}" data-press-url="{{ url_for('virtual_numpad_press') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
+{% set placed_controls = numpad_layout.get('controls', [])|map(attribute='id')|list if numpad_layout else [] %}
+<section class="panel numpad-panel" id="virtual-numpad" data-layout-signature="{{ layout_signature }}" data-state-url="{{ url_for('virtual_numpad_state') }}" data-press-url="{{ url_for('virtual_numpad_press') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
   <div class="section-heading"><h2>Virtual numpad</h2><span class="pill amber">Live control</span></div>
   <p class="hint">Press a mapped key to run its task or send the active task’s keyboard or IR command.</p>
   <p class="hint">Active task: <strong id="virtual-active-task">{{ cfg.scenes[active_task].label if active_task else 'None' }}</strong></p>
-  <div class="numpad-housing" role="group" aria-label="Live virtual numpad" aria-describedby="virtual-numpad-note">
-    <div class="numpad">
-      {% for key in ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT'] %}
+  <div class="numpad-housing {{ 'custom-housing' if numpad_layout }}" role="group" aria-label="Live virtual numpad" aria-describedby="virtual-numpad-note">
+    <div class="numpad {{ 'custom-numpad' if numpad_layout }}" {% if numpad_layout %}data-custom-layout="{{ numpad_layout|tojson|forceescape }}"{% endif %}>
+      {% for key in (keys if numpad_layout else ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT']) %}
       {% set mapped = cfg.keypad.bindings.get(key) %}
       {% set command = key_commands.get(key) if not mapped else none %}
       {% set appearance = task_appearance(mapped or active_task, cfg.scenes[mapped or active_task]) if mapped or command else {} %}
@@ -17,17 +18,22 @@
          aria-label="{{ keys.get(key, 'Num') }}: {{ action }}"
          title="{{ action }}">{{ 'Num' if key == 'KEY_NUMLOCK' else keys.get(key, 'Num') }}</button>
       {% endfor %}
+      {% if numpad_layout %}{% set layout_live = true %}{% include 'custom_layout_controls.html' %}{% endif %}
     </div>
-    <div class="numpad-side-controls">
+    <div class="numpad-side-controls" {{ 'hidden' if numpad_layout }}>
+      {% if 'dial' not in placed_controls %}
       <div class="numpad-wheel" id="virtual-dial" role="button" tabindex="0" aria-disabled="true" aria-label="Switch wheel volume target. Use arrow keys to turn the dial." title="Click to switch volume target; use arrow keys or scroll to turn the dial">
         <span class="wheel-face" aria-hidden="true"><span class="wheel-marker"></span></span>
       </div>
+      {% endif %}
+      {% if 'slider' not in placed_controls %}
       <input type="range" class="virtual-slider" id="virtual-slider" min="0" max="100" step="1" value="50" disabled aria-label="Slider movement" aria-describedby="virtual-numpad-note">
+      {% endif %}
       <span class="numpad-badge" aria-hidden="true">d<span>.</span></span>
     </div>
   </div>
   <p class="mapping-focus" id="mapping-focus">Hover or focus a task or key to see its mapping.</p>
-  <div class="virtual-control-rows">
+  <div class="virtual-control-rows" {{ 'hidden' if numpad_layout and not cfg.keypad.get('controls') }}>
     {% for control, label in [('dial', 'Wheel'), ('slider', 'Slider')] %}
     <div class="virtual-control-row">
       <div><strong>{{ label }}</strong><small id="virtual-{{ control }}-target">{{ cfg.inventory.get(controls[control].device, {}).get('name', controls[control].device) if controls.get(control) else 'Unassigned' }}</small></div>

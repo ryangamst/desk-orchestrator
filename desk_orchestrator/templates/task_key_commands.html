@@ -1,4 +1,5 @@
 {% set serial_keyboard = cfg.get('kvm', {}).get('transport') == 'ch9328' %}
+{% set first_key = (keys|first) if numpad_layout else 'KEY_NUMLOCK' %}
 <section class="panel key-command-editor" id="key-command-editor" {{ 'data-readonly' if key_commands_readonly }}>
   <div class="section-heading"><div><h2>Keyboard mapping</h2><p class="hint">{{ 'Select a numpad key to view its saved command for this task.' if key_commands_readonly else 'Select a numpad key, then assign a keyboard sequence or IR command for this task.' }}</p></div><span class="step-badge">02</span></div>
   <p class="hint">Choose an IR command saved in Hardware, or define shortcuts for the operating system or app on this task’s computer: Win+R, Cmd+Space, Ctrl+Alt+T, or your own combination. {% if serial_keyboard %}Your CH9328 connection sends keyboard sequences through the existing serial interface.{% endif %}</p>
@@ -9,9 +10,9 @@
   {% endif %}
   <div class="key-command-layout">
     <div>
-      <div class="numpad-housing" role="group" aria-label="{{ 'Choose a numpad key to preview' if key_commands_readonly else 'Choose a numpad key to configure' }}">
-        <div class="numpad">
-          {% for code in ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT'] %}
+      <div class="numpad-housing {{ 'custom-housing' if numpad_layout }}" role="group" aria-label="{{ 'Choose a numpad key to preview' if key_commands_readonly else 'Choose a numpad key to configure' }}">
+        <div class="numpad {{ 'custom-numpad' if numpad_layout }}" {% if numpad_layout %}data-custom-layout="{{ numpad_layout|tojson|forceescape }}"{% endif %}>
+          {% for code in (keys if numpad_layout else ['KEY_NUMLOCK','KEY_KPSLASH','KEY_KPASTERISK','KEY_KPMINUS','KEY_KP7','KEY_KP8','KEY_KP9','KEY_KPPLUS','KEY_KP4','KEY_KP5','KEY_KP6','KEY_KP1','KEY_KP2','KEY_KP3','KEY_KPENTER','KEY_KP0','KEY_KPDOT']) %}
           {% set selected = editable_sequence(task.get('key_commands', {}).get(code, '')) %}
           {% set owner = cfg.keypad.bindings.get(code) %}
           {% set reserved = code in reserved_command_keys %}
@@ -19,12 +20,13 @@
           {% set reason = 'Launches ' + cfg.scenes[owner].label if owner else ('Reserved for a dial or slider input' if reserved else '') %}
           <button type="button" class="key {{ 'tone-' + appearance.color if owner else 'tone-lavender' }} {{ 'mapped' if owner or selected or reserved }} {{ 'tall' if code in ['KEY_KPPLUS','KEY_KPENTER'] }} {{ 'wide' if code == 'KEY_KP0' }}"
             data-command-key="{{ code }}" data-key-label="{{ keys[code] }}" data-reserved-reason="{{ reason }}"
-            aria-controls="command-panel-{{ code }}" aria-pressed="{{ 'true' if code == 'KEY_NUMLOCK' else 'false' }}"
+            aria-controls="command-panel-{{ code }}" aria-pressed="{{ 'true' if code == first_key else 'false' }}"
             aria-label="{{ keys[code] }}: {{ reason or (command_label(selected, cfg) if selected else 'Unassigned') }}"
             title="{{ reason or (command_label(selected, cfg) if selected else 'Unassigned') }}">{{ 'Num' if code == 'KEY_NUMLOCK' else keys[code] }}</button>
           {% endfor %}
+          {% if numpad_layout %}{% set layout_live = false %}{% include 'custom_layout_controls.html' %}{% endif %}
         </div>
-        <div class="numpad-side-controls">
+        <div class="numpad-side-controls" {{ 'hidden' if numpad_layout }}>
           <a class="numpad-wheel" href="#dial-controls" aria-label="{{ 'View' if key_commands_readonly else 'Configure' }} the rotary dial" title="{{ 'View' if key_commands_readonly else 'Configure' }} the rotary dial"><span class="wheel-face" aria-hidden="true"><span class="wheel-marker"></span></span></a>
           <a class="numpad-slider" href="#slider-controls" aria-label="{{ 'View' if key_commands_readonly else 'Configure' }} the slider" title="{{ 'View' if key_commands_readonly else 'Configure' }} the slider"><span class="slider-track" aria-hidden="true"></span><span class="slider-thumb" aria-hidden="true"><span></span></span></a>
           <span class="numpad-badge" aria-hidden="true">d<span>.</span></span>
@@ -37,7 +39,7 @@
       {% set selected = editable_sequence(task.get('key_commands', {}).get(code, '')) %}
       {% set reserved = code in reserved_command_keys %}
       {% set owner = cfg.keypad.bindings.get(code) %}
-      <div id="command-panel-{{ code }}" data-command-panel="{{ code }}" {{ 'hidden' if code != 'KEY_NUMLOCK' }}>
+      <div id="command-panel-{{ code }}" data-command-panel="{{ code }}" {{ 'hidden' if code != first_key }}>
         <p class="eyebrow">SELECTED KEY</p><h3>{{ label }}</h3>
         {% if key_commands_readonly %}
         {% if owner %}

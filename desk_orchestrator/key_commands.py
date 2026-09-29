@@ -183,6 +183,7 @@ def editable_sequence(command):
 
 
 def reserved_keys(config):
+    from .numpad_profiles import layout
     keypad = config.get("keypad", {})
     reserved = set(keypad.get("bindings", {}))
     main = str(Path(keypad.get("device", "")).resolve())
@@ -192,12 +193,15 @@ def reserved_keys(config):
             codes.update((source["code"], source["down_code"]))
         if str(Path(source.get("press_device", source["device"])).resolve()) == main:
             codes.add(source.get("press_code"))
-        reserved.update(key for key, code in KEY_CODES.items() if code in codes)
+        custom = layout(config)
+        signals = {key["id"]: key.get("code") for key in custom["keys"]} if custom else KEY_CODES
+        reserved.update(key for key, code in signals.items() if code is not None and code in codes)
     return reserved
 
 
 def validate_bindings(bindings, config):
-    require(isinstance(bindings, dict) and set(bindings) <= set(KEYS), "Choose supported numpad keys for commands.")
+    from .numpad_profiles import labels
+    require(isinstance(bindings, dict) and set(bindings) <= set(labels(config, all_profiles=True)), "Choose supported numpad keys for commands.")
     require(not set(bindings) & reserved_keys(config), "Command keys must be unbound: a key is reserved for a task or input control.")
     for command in bindings.values():
         if is_ir_binding(command):
@@ -213,6 +217,8 @@ def command_report(command):
 
 
 def run_key_command(runner, key, *, live=False, dry_scene=None, expected_scene=None):
+    from .numpad_profiles import labels
+    require(key in labels(runner.config), "This key belongs to an inactive numpad profile.")
     def run():
         scene = active_scene(runner) if live else dry_scene
         if expected_scene is not None:
@@ -223,7 +229,7 @@ def run_key_command(runner, key, *, live=False, dry_scene=None, expected_scene=N
         require(key in bindings, "This key has no command in the active task.")
         step = binding_step(bindings[key])
         runner.execute_step(step, live=live, scene=scene, key=key)
-        runner.emit(f"{'LIVE' if live else 'DRY RUN'} {scene} {KEYS[key]}: {command_label(bindings[key], runner.config)}")
+        runner.emit(f"{'LIVE' if live else 'DRY RUN'} {scene} {labels(runner.config)[key]}: {command_label(bindings[key], runner.config)}")
         return dict(scene=scene, key=key, command=bindings[key], status="commands_sent" if live else "dry_run")
 
     with trace():

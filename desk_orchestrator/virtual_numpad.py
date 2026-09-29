@@ -4,7 +4,7 @@ import re
 import time
 from contextlib import contextmanager
 
-from .config_store import KEYS
+from .numpad_profiles import labels, geometry_signature
 from .controls import CONTROL_NAMES, active_scene, run_control, selected_mapping, selected_index
 from .core import DeskError, Runner, atomic_json, exclusive, require
 from .diagnostics import trace
@@ -24,7 +24,7 @@ def key_commands(cfg, active):
     reserved = reserved_keys(cfg)
     return {key: command_label(command, cfg) for key, command in
             cfg["scenes"].get(active, {}).get("key_commands", {}).items()
-            if key not in reserved}
+            if key not in reserved and key in labels(cfg)}
 
 
 def state(cfg):
@@ -42,7 +42,7 @@ def state(cfg):
                           "source_count": len(configured.get("click", {}).get("sources", [])),
                           "target": cfg.get("inventory", {}).get(mapping["device"], {}).get("name", mapping["device"]) if mapping else "Unassigned"}
     busy = locked(runner.runtime / "virtual-input.lock") or locked(runner.runtime / "scene.lock")
-    return {"revision": cfg["revision"], "active_task": active,
+    return {"revision": cfg["revision"], "layout_signature": geometry_signature(cfg), "active_task": active,
             "active_label": cfg["scenes"][active]["label"] if active else "None",
             "key_commands": key_commands(cfg, active),
             "busy": busy, "controls": controls}
@@ -79,7 +79,7 @@ def press(cfg, data):
     scene = None
     if kind == "key":
         key = data.get("key", "")
-        require(key in KEYS, "Unknown numpad key.")
+        require(key in labels(cfg), "Unknown numpad key.")
         scene = cfg["keypad"]["bindings"].get(key)
         if scene is None:
             scene = data.get("active_task")

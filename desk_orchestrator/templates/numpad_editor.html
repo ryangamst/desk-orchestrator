@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block section %}Numpad{% endblock %}
+{% block content %}
+<div id="numpad-editor" data-save-url="{{ url_for('save_numpad_profile', name=editing_profile) }}" data-learn-url="{{ url_for('learn_numpad_key') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
+  <div class="page-heading"><div><div class="eyebrow">CUSTOM INPUT</div><h1>Numpad editor</h1></div><div class="heading-actions"><a class="button" href="{{ url_for('numpad') }}">Cancel</a><button type="button" class="button primary" id="layout-save">Save layout</button></div></div>
+  <div class="layout-toolbar" role="toolbar" aria-label="Layout tools">
+    <button type="button" class="button" id="key-add">{{ icon('numpad') }} Add key</button>
+    <button type="button" class="button" id="dial-add">{{ icon('disc') }} Add dial</button>
+    <button type="button" class="button" id="slider-add">{{ icon('settings') }} Add slider</button>
+    <button type="button" class="button" id="key-duplicate" title="Duplicate selected key" aria-label="Duplicate selected key">{{ icon('layers') }}</button>
+    <button type="button" class="button" id="key-delete" title="Delete selected key" aria-label="Delete selected key">&times;</button>
+    <button type="button" class="button" id="layout-undo" title="Undo" aria-label="Undo">&#8630;</button>
+    <button type="button" class="button" id="layout-redo" title="Redo" aria-label="Redo">&#8631;</button>
+    <label>Starting layout<select id="layout-preset"><option value="">Choose</option><option value="blank">Blank</option><option value="standard">Standard numpad</option></select></label>
+    <label>Zoom<input type="range" id="layout-zoom" min="30" max="100" value="64"><output id="zoom-value">100%</output></label>
+  </div>
+  <p id="editor-status" role="status" aria-live="polite">Unsaved layout</p>
+  <div class="layout-workspace">
+    <div class="layout-viewport"><div id="layout-canvas" role="group" aria-label="Numpad layout"></div></div>
+    <aside class="layout-properties">
+      <h2>Container</h2>
+      <label>Name<input id="layout-name" maxlength="80"></label>
+      <div class="property-pair"><label>Width<input id="layout-width" type="number" min="1" max="32" step=".25"></label><label>Height<input id="layout-height" type="number" min="1" max="16" step=".25"></label></div>
+      <h2>Hardware</h2>
+      <label>Input device<input id="layout-device" list="layout-inputs" value="{{ connection.get('device', '') }}" placeholder="/dev/input/by-id/..."></label>
+      <datalist id="layout-inputs">{% for input in inputs %}<option value="{{ input.selection_path }}">{{ input.name }}{{ ' (access needed)' if not input.readable }}</option>{% endfor %}</datalist>
+      <label class="checkbox-field"><input id="layout-grab" type="checkbox" {{ 'checked' if connection.get('grab', True) }}>Exclusive access</label>
+      <h2 id="selection-heading">Selected element</h2>
+      <p id="key-empty">No element selected</p>
+      <fieldset id="key-properties" hidden>
+        <label>Label<input id="key-label" maxlength="40"></label>
+        <div class="property-pair"><label>X<input id="key-x" type="number" min="0" step=".25"></label><label>Y<input id="key-y" type="number" min="0" step=".25"></label><label>Width<input id="key-w" type="number" min=".25" step=".25"></label><label>Height<input id="key-h" type="number" min=".25" step=".25"></label></div>
+        <div id="key-input-properties">
+          <p id="key-signal"></p><p id="key-assignments"></p>
+          <div class="layout-actions"><button type="button" class="button" id="key-learn">Learn key</button><button type="button" class="button" id="key-clear">Clear signal</button></div>
+          <label class="checkbox-field"><input id="learn-next" type="checkbox">Advance to next key</label>
+        </div>
+        <div id="control-input-properties" hidden>
+          <label id="slider-orientation-field">Orientation<select id="slider-orientation"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
+          <label>Input signal<select id="control-mode"><option value="">Disabled</option><option value="keys">Two keys</option><option value="relative">Relative axis</option><option value="absolute">Absolute axis</option><option value="gmmk_raw" id="control-gmmk-option">GMMK raw slider</option></select></label>
+          <div id="control-source-fields" hidden>
+            <label>Control input device<input id="control-device" list="layout-inputs" placeholder="/dev/input/by-id/..."></label>
+            <label><span id="control-code-label">Signal code</span><input id="control-code" type="number" min="0" max="767"></label>
+            <button type="button" class="button" id="control-learn-code">Learn signal</button>
+            <div id="control-down-field"><label>Decrease key code<input id="control-down-code" type="number" min="0" max="767"></label><button type="button" class="button" id="control-learn-down">Learn decrease</button></div>
+            <label class="checkbox-field"><input id="control-invert" type="checkbox">Reverse direction</label>
+            <label id="control-threshold-field">Movement threshold<input id="control-deadband" type="number" min="1" max="65535" step="1"></label>
+            <div id="dial-click-fields">
+              <label>Click key code (optional)<input id="control-press-code" type="number" min="0" max="767"></label>
+              <label>Click input device (optional)<input id="control-press-device" list="layout-inputs" placeholder="Same as control input"></label>
+              <button type="button" class="button" id="control-learn-click">Learn click</button>
+            </div>
+          </div>
+          <a href="{{ url_for('tasks') }}">Task actions</a>
+        </div>
+      </fieldset>
+    </aside>
+  </div>
+  <dialog id="learn-dialog"><h2>Learn hardware key</h2><p id="learn-status" role="status" aria-live="polite"></p><div class="layout-actions"><button type="button" class="button primary" id="learn-accept" disabled>Accept</button><button type="button" class="button" id="learn-retry">Retry</button><button type="button" class="button" id="learn-cancel">Cancel</button></div></dialog>
+  <script type="application/json" id="layout-data">{{ editor_profile|tojson }}</script>
+  <script type="application/json" id="layout-assignments">{{ assignments|tojson }}</script>
+  <script type="application/json" id="layout-sources">{{ connection.get('controls', {})|tojson }}</script>
+</div>
+<script src="{{ url_for('static', filename='numpad_editor.js') }}" defer></script>
+{% endblock %}

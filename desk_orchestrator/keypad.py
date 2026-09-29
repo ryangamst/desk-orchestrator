@@ -9,6 +9,7 @@ from pathlib import Path
 from .controls import ControlDecoder, run_control, active_scene
 from .gmmk_slider import SliderDevice
 from .key_commands import run_key_command
+from . import numpad_profiles, key_learning
 
 from .core import DeskError, Runner, require
 from .hardware import Hardware
@@ -57,12 +58,24 @@ class KeyGate:
         return None
 
 
+class Reconfigure(Exception):
+    pass
+
+
 async def listen(config, runner, *, live=False, reload_config=None):
+    while True:
+        try:
+            return await _listen(config, runner, live=live, reload_config=reload_config)
+        except Reconfigure:
+            config = reload_config()
+            runner = Runner(config, Hardware(config), emit=runner.emit)
+
+
+async def _listen(config, runner, *, live=False, reload_config=None):
     keypad = config.get("keypad", {})
     log = runner.log
     try:
         evdev = evdev_module()
-        require(keypad.get("device"), "Set keypad.device to the numpad's /dev/input/by-id/...-event-kbd path.")
     except DeskError as exc:
         log.emit("listener", "Listener could not start", level="error", error=str(exc), live=live)
         raise
@@ -113,13 +126,21 @@ async def listen(config, runner, *, live=False, reload_config=None):
             finished_at = time.monotonic()
 
     # De-duplicate aliases: each physical interface is opened/grabbed only once.
-    paths = list(dict.fromkeys([keypad["device"], *[s["device"] for s in sources.values() if s["mode"] != "gmmk_raw"]]))
+    paths = list(dict.fromkeys([keypad.get("device", ""), *[s["device"] for s in sources.values() if s["mode"] != "gmmk_raw"]]))
     paths.extend(s["press_device"] for s in sources.values() if s.get("press_device"))
     unique = {}
-    for path in paths:
+    for path in filter(None, paths):
         unique.setdefault(str(Path(path).resolve()), path)
 
     states = {path: {"state": "connecting"} for path in unique.values()}
+
+    def capture_finished():
+        nonlocal finished_at
+        finished_at = time.monotonic()
+        decoder.reset()
+
+    broker = key_learning.Broker(config.get("runtime", {}).get("directory", ".runtime"), evdev, list(unique.values()), states,
+                                lambda: active is not None and not active.done(), capture_finished)
 
     def listener_state(path, state, **details):
         states[path] = dict(state=state, **details)
@@ -131,10 +152,19 @@ async def listen(config, runner, *, live=False, reload_config=None):
         while True:
             for path, state in states.items():
                 log.listener(path, live=live, **state)
-            await asyncio.sleep(5)
+            await asyncio.sleep(1)
+            if reload_config and broker.session is None:
+                try:
+                    fresh = reload_config().get("keypad", {})
+                except (DeskError, OSError, ValueError):
+                    continue
+                if any(fresh.get(field) != keypad.get(field) for field in ("device", "grab", "active_profile", "controls")):
+                    raise Reconfigure()
 
     def handle_event(event, path, main_input, controls):
         nonlocal active, last_control, control_scene
+        if broker.consume(event, path):
+            return
         # Each input and all work dispatched from it share one trace across threads.
         with trace():
             names = evdev.ecodes.KEY.get(event.code, []) if event.type == 1 else []
@@ -167,6 +197,9 @@ async def listen(config, runner, *, live=False, reload_config=None):
                     event_config = fresh
                     gate.bindings = fresh.get("keypad", {}).get("bindings", {})
                     current_runner = Runner(fresh, Hardware(fresh), emit=runner.emit)
+                    if any(fresh.get("keypad", {}).get(field) != keypad.get(field)
+                           for field in ("device", "grab", "active_profile", "controls")):
+                        return
                 except (DeskError, OSError, ValueError) as exc:
                     log.emit("input", "Configuration reload failed; input ignored", level="error", error=error_text(exc), live=live)
                     print(f"Cannot reload configuration; input ignored: {exc}", flush=True)
@@ -179,7 +212,8 @@ async def listen(config, runner, *, live=False, reload_config=None):
                 gate.bindings = {key: ("command", key) for key in commands}
                 gate.bindings.update({key: ("scene", scene) for key, scene in
                                       event_config.get("keypad", {}).get("bindings", {}).items()})
-                action = gate.accept(names, event.value, busy=False, now=time.monotonic())
+                input_keys = numpad_profiles.signal_keys(event_config, event.code, names)
+                action = gate.accept(input_keys, event.value, busy=False, now=time.monotonic())
                 if action and action[0] == "command":
                     log.emit("input", "Key mapped to numpad command", key=action[1], scene=scene_now, live=live)
                     active = asyncio.create_task(send_command(action[1], current_runner, scene_now))
@@ -210,7 +244,7 @@ async def listen(config, runner, *, live=False, reload_config=None):
     async def read_input(path):
         nonlocal active, last_control
         canonical = str(Path(path).resolve())
-        main_input = canonical == str(Path(keypad["device"]).resolve())
+        main_input = canonical == str(Path(keypad.get("device", "")).resolve())
         controls = {name: source for name, source in sources.items()
                     if source["mode"] != "gmmk_raw" and str(Path(source["device"]).resolve()) == canonical}
         while True:
@@ -256,10 +290,18 @@ async def listen(config, runner, *, live=False, reload_config=None):
     readers.extend(asyncio.create_task(read_slider(name, source)) for name, source in sources.items()
                    if source["mode"] == "gmmk_raw")
     pulse = asyncio.create_task(heartbeat())
+    learning = asyncio.create_task(broker.run())
     try:
-        await asyncio.gather(*readers)
+        if readers:
+            done, _ = await asyncio.wait([*readers, pulse, learning], return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                task.result()
+        else:
+            await asyncio.gather(pulse, learning)
     finally:
         pulse.cancel()
+        learning.cancel()
+        await asyncio.gather(learning, return_exceptions=True)
         await asyncio.gather(pulse, return_exceptions=True)
         for reader in readers:
             reader.cancel()

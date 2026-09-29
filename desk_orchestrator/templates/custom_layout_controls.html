@@ -1,0 +1,17 @@
+{% for item in numpad_layout.get('controls', []) %}
+<div class="custom-layout-control custom-layout-{{ item.id }}" data-layout-control="{{ item.id }}" data-orientation="{{ item.get('orientation', 'vertical') }}">
+  {% if layout_live %}
+    {% if item.id == 'dial' %}
+    <div class="numpad-wheel" id="virtual-dial" role="button" tabindex="0" aria-disabled="true" aria-label="{{ item.label }}" title="{{ item.label }}: scroll or use arrow keys to turn; click to switch target">
+      <span class="wheel-face" aria-hidden="true"><span class="wheel-marker"></span></span>
+    </div>
+    {% else %}
+    <input type="range" class="custom-slider" id="virtual-slider" min="0" max="100" step="1" value="50" disabled aria-label="{{ item.label }}" aria-orientation="{{ item.get('orientation', 'vertical') }}" title="{{ item.label }}">
+    {% endif %}
+  {% else %}
+    <a class="custom-control-link" href="#{{ item.id }}-controls" aria-label="Configure {{ item.label }}" title="{{ item.label }}">
+      {% if item.id == 'dial' %}<span class="wheel-face" aria-hidden="true"><span class="wheel-marker"></span></span>{% else %}<span class="custom-slider-preview" aria-hidden="true"></span>{% endif %}
+    </a>
+  {% endif %}
+</div>
+{% endfor %}

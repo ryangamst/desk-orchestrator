@@ -130,6 +130,61 @@ A fixed **Raspberry Pi controller** node is added once to existing
 configurations; it can be renamed but not deleted. See the
 [hardware map guide](docs/web-app.md#hardware-map).
 
+### Custom numpads and keyboards
+
+The built-in **GMMK Numpad** profile retains its existing layout, mappings,
+wheel, slider, and RGB support. In **Numpad**, select **Add custom numpad /
+keyboard** to create another profile, then:
+
+1. Name and size the container, or start with the standard numpad layout.
+2. Add keys, drag them into place, and resize them using the corner handle or
+   numeric properties. Positions and sizes snap to quarter-key units. Arrow
+   keys move a focused key; Shift moves it a full unit. Undo/redo retains edits.
+3. Choose the input attached to the controller. Select a virtual key and use
+   **Learn key**, press its physical counterpart, and accept the detected signal.
+   **Advance to next key** supports mapping the whole layout in sequence.
+4. Save the layout, select it under **Active profile**, and choose **Use profile**.
+5. Assign its keys in **Tasks**. The Overview and task editor use the saved layout;
+   the Hardware map uses its key labels and assignments.
+
+Profiles preserve their own device selection and assignments. Switching profiles
+automatically reconnects an updated, running listener. Only one profile is active
+at a time. Moving, resizing, relabeling, or relearning a key preserves its actions;
+deleting assigned keys requires confirmation. Backups include custom layouts and
+assignments, while restore keeps this controller's local device connections.
+
+Key learning requires the **updated numpad listener** running against the same
+managed configuration as the web app. It captures on the controller, so the browser
+can run on another computer. Learning holds the shared action lock and consumes
+input without running tasks or sending keyboard, IR, or control commands. A
+session expires after 60 seconds, or within 10 seconds of losing the browser;
+disconnects and cancellation release the input. Duplicate signals and conflicts
+with dial/slider inputs are rejected. Captured presses are not added to the activity
+log. Other applications may still receive keys when exclusive access is disabled.
+
+Custom layouts support standard Linux key events, including letter/function keys
+and non-USB inputs exposed by Linux. Proprietary protocols and hardware-only Fn
+keys need a separate adapter; two keys emitting identical signals cannot be mapped
+independently. Custom layouts support up to 200 keys, one rotary dial, and one
+slider per profile, with up to 20 profiles. Generic RGB control is not included.
+
+Use **Add dial** or **Add slider** in the custom editor to place these controls.
+They share the keys' drag, resize, and undo/redo tools. Dials keep a square footprint;
+sliders can be horizontal or vertical. Select a control to configure its input
+interface, two-key/relative-axis/absolute-axis signal, direction reversal, and
+movement threshold. **Learn increase**, **Learn decrease**, **Learn axis**, and
+the optional dial **Learn click** capture signals on the controller without
+sending actions. A control may use a different input interface from the keys.
+The stock GMMK raw slider option uses its existing adapter and fixed signal code.
+
+Save and activate the profile, then assign its dial/slider actions in **Tasks**.
+The Overview renders the controls in their saved positions: scroll or use arrow
+keys on the dial, click to switch configured volume targets, or drag the slider.
+The slider remains a relative gesture control, not measured volume. Removing a
+placed control disables its hardware input for that profile but keeps the shared
+task actions. Existing GMMK controls and layouts without placed controls retain
+their behavior.
+
 ### Rotary dial and slider
 
 Both controls can have different mappings for each task. In **Tasks → Edit →

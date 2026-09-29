@@ -59,6 +59,16 @@ class USBDiscoveryTests(unittest.TestCase):
         self.assertEqual(result["devices"][0]["name"], "GMMK Numpad")
         self.assertEqual(result["candidates"], [])
 
+    def test_custom_discovery_includes_non_numpad_and_non_usb_inputs(self):
+        self.event(5, [30, 31])
+        self.usb = self.sys / 'devices/virtual/input'
+        self.event(8, [59, 60])
+        result = scan_usb(self.sys, self.dev)
+        self.assertEqual(result['candidates'], [])
+        self.assertEqual(len(result['keyboards']), 2)
+        self.assertEqual(result['keyboards'][1]['port'], 'non-USB')
+        self.assertEqual(selected_input({'device':str(self.dev / 'event8')}, result)['status'], 'Connected')
+
     def test_permission_denied_is_visible_not_a_scan_failure(self):
         self.event(5, NUMPAD_KEYS)
         with patch("desk_orchestrator.usb_devices.os.access", return_value=False):

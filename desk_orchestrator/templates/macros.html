@@ -6,6 +6,6 @@
   <div class="card-top"><span class="task-icon">{{ icon(appearance.icon) }}</span><span class="pill green">Saved</span></div>
   <h3>{{ task.label }}</h3>
   <p>{{ task.steps|length }} ordered actions <span class="middot">·</span> {{ 'Keeps active task' if task.get('keep_active_task', false) else 'Saved sequence' }}</p>
-  <div class="card-bottom"><span>{% for key, value in cfg.keypad.bindings.items() if value == name %}<kbd>{{ keys.get(key, key) }}</kbd>{% else %}<span class="muted">No key assigned</span>{% endfor %}</span><div><a href="{{ url_for('preview', name=name) }}">Preview</a><a class="arrow-link" aria-label="Edit {{ task.label }}" href="{{ url_for('task_edit', name=name) }}">↗</a></div></div>
+  <div class="card-bottom"><span>{% for key, value in active_bindings.items() if value == name %}<kbd>{{ keys.get(key, key) }}</kbd>{% else %}<span class="muted">No key assigned</span>{% endfor %}</span><div><a href="{{ url_for('preview', name=name) }}">Preview</a><a class="arrow-link" aria-label="Edit {{ task.label }}" href="{{ url_for('task_edit', name=name) }}">↗</a></div></div>
 </article>
 {% endmacro %}

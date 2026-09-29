@@ -18,6 +18,11 @@ render. SmartThings discovery/checks still need internet access.
 - Input-device and SmartThings inventory discovery.
 - A dedicated Numpad page with connected USB devices and selectable keyboard
   inputs, stable device paths, saved identity, and connection/access status.
+- Custom numpad/keyboard profiles with a visual container/key editor, hardware
+  key and axis learning, placeable dial/slider controls, profile-specific inputs
+  and key assignments, and automatic input reconnection.
+  The built-in GMMK profile remains the default. See
+  [Custom numpads and keyboards](../README.md#custom-numpads-and-keyboards).
 - Backup download and validated restore, password login, CSRF protection,
   atomic saves, and protection against overwriting changes from another tab.
 - Hardware referenced by a task cannot be deleted or changed to an incompatible
@@ -49,7 +54,8 @@ command verification, and partial-failure behavior. Inputs received while busy
 are rejected, not queued; rapid key/control inputs are limited to 350/100 ms.
 Requests carry the displayed mapping revision, and control requests also verify
 the active task under the execution lock. Changed mappings, task cards, and
-Overview counts refresh in the background without reloading the page.
+Overview counts refresh in the background without reloading the page. Switching
+profiles or changing the custom layout reloads the Overview to display its new keys.
 Recent request IDs are remembered across HTTP/HTTPS workers to prevent
 duplicate dispatch. Connection failures never trigger automatic retries: check
 **Activity** before trying again because the input may already have run.

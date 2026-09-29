@@ -80,6 +80,11 @@
     return response.json();
   }
   function applyState(next) {
+    if (panel.dataset.layoutSignature && next.layout_signature && panel.dataset.layoutSignature !== next.layout_signature) {
+      online = false;
+      window.location.reload();
+      return;
+    }
     if (String(next.revision) !== panel.dataset.revision && next.overview) {
       // Replace configuration summaries only when they change. Keep the controls,
       // focus, slider gesture, and command result in the existing document.

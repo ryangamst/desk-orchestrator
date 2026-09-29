@@ -132,8 +132,10 @@ def default_numpad_map(config):
 
 
 def numpad_item(config):
+    from .numpad_profiles import layout
     keypad = config.get("keypad", {})
-    return dict(name=keypad.get("identity", {}).get("name") or "USB numpad", type=NUMPAD_TYPE, method="none",
+    custom = layout(config)
+    return dict(name=custom["name"] if custom else keypad.get("identity", {}).get("name") or "USB numpad", type=NUMPAD_TYPE, method="none",
                 notes=keypad.get("device", ""), settings={},
                 map=copy.deepcopy(keypad["map"]) if "map" in keypad else default_numpad_map(config))
 
@@ -212,9 +214,13 @@ def step_touches(cfg, step):
 def model(cfg):
     """Everything the map page draws. The browser never writes anything but maps."""
     from .appearance import task_appearance
-    from .key_commands import KEYS, command_label
+    from .key_commands import command_label
+    from .numpad_profiles import labels
+    KEYS = labels(cfg)
     keys_by_task = {}
     for key, task in cfg["keypad"].get("bindings", {}).items():
+        if key not in KEYS:
+            continue
         keys_by_task.setdefault(task, []).append(dict(key=key, label=KEYS.get(key, key)))
     devices = {}
     for name, item in cfg["inventory"].items():
@@ -233,7 +239,7 @@ def model(cfg):
         item = numpad_item(cfg)
         controls = [name for name in ("dial", "slider") if name in cfg["keypad"].get("controls", {})]
         devices[NUMPAD] = dict(name=item["name"], type=NUMPAD_TYPE, method="numpad", notes=item["notes"],
-                               summary=f"{len(cfg['keypad'].get('bindings', {}))} task keys"
+                               summary=f"{sum(key in KEYS for key in cfg['keypad'].get('bindings', {}))} task keys"
                                        + (f" · {' and '.join(controls)} configured" if controls else ""),
                                map=item["map"], commands=[], action_choices=[], fixed="numpad")
     from .controls import control_mappings
@@ -255,12 +261,12 @@ def model(cfg):
                            keep_active_task=task.get("keep_active_task", False),
                            touches={device: sorted(ports) for device, ports in touches.items()},
                            uses=sorted(device for device in uses if device),
-                           key_commands={key: command_label(command, cfg) for key, command in task.get("key_commands", {}).items()},
+                           key_commands={key: command_label(command, cfg) for key, command in task.get("key_commands", {}).items() if key in KEYS},
                            **task_appearance(name, task))
     from .config_store import METHODS, TYPES
     return dict(revision=cfg["revision"], controller=CONTROLLER, numpad=NUMPAD, devices=devices, tasks=tasks,
                 signals=SIGNALS, directions=DIRECTIONS, keys=KEYS, types=list(TYPES), methods=METHODS,
-                bindings=dict(cfg["keypad"].get("bindings", {})))
+                bindings={key: task for key, task in cfg["keypad"].get("bindings", {}).items() if key in KEYS})
 
 
 def parse_devices(value):

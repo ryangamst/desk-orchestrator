@@ -10,6 +10,7 @@ from .core import DeskError, atomic_json, exclusive, load_config, number, requir
 from .key_commands import KEYS, is_ir_binding
 from .appearance import COLORS, ICONS
 from . import hardware_map
+from . import numpad_profiles
 from .hardware_map import CONTROLLER, CONTROLLER_TYPE, NUMPAD
 
 TYPES = ("Computing", "Monitor", "Audio", "KVM", "Peripheral", "Other")
@@ -145,7 +146,7 @@ def validate_catalog(config):
                 require(step["input"] in settings.get("inputs", {}), f"{name}: unknown input {step['input']}.")
             else:
                 require(any(p["db"] == step["db"] for p in settings.get("volume_presets", [])), f"{name}: add a volume preset for {step['db']} dB first.")
-    require(set(config.get("keypad", {}).get("bindings", {})) <= set(KEYS), "Unsupported numpad key.")
+    require(set(config.get("keypad", {}).get("bindings", {})) <= set(numpad_profiles.labels(config, all_profiles=True)), "Unsupported numpad key.")
     return config
 
 
@@ -252,15 +253,20 @@ class ConfigStore:
 
     def save_task(self, revision, name, task, key, *, creating=False):
         identifier(name)
-        require(key == "" or key in KEYS, "Choose a valid numpad key.")
         def edit(config):
+            active_keys = numpad_profiles.labels(config)
+            require(key == "" or key in active_keys, "Choose a valid numpad key.")
             require((name not in config["scenes"]) if creating else (name in config["scenes"]), "Task ID already exists or was deleted.")
             bindings = config.setdefault("keypad", {}).setdefault("bindings", {})
             require(not key or bindings.get(key, name) == name, f"Numpad key is already assigned to {bindings.get(key)}.")
-            config["keypad"]["bindings"] = {k: v for k, v in bindings.items() if v != name}
+            config["keypad"]["bindings"] = {k: v for k, v in bindings.items() if v != name or k not in active_keys}
             if key:
                 config["keypad"]["bindings"][key] = name
-            config["scenes"][name] = copy.deepcopy(task)
+            saved = copy.deepcopy(task)
+            inactive_commands = {k: v for k, v in config["scenes"].get(name, {}).get("key_commands", {}).items() if k not in active_keys}
+            if not saved.get("keep_active_task"):
+                saved.setdefault("key_commands", {}).update(inactive_commands)
+            config["scenes"][name] = saved
         return self.update(revision, edit)
 
     def delete_task(self, revision, name):
@@ -325,4 +331,5 @@ class ConfigStore:
             if not hardware_map.numpad_configured(config):
                 hardware_map.drop_links_to(config, NUMPAD)
             config["keypad"]["bindings"] = copy.deepcopy(backup["keypad"]["bindings"])
+            numpad_profiles.restore(config, backup)
         return self.update(revision, edit)
