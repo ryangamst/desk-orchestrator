@@ -41,13 +41,23 @@ Hover or focus a key to see its command or custom macro name and highlight its
 task card. Hovering a task also highlights its active keyboard mappings. These
 colors and previews update automatically when the active task or mappings change.
 
-The wheel's clockwise/counterclockwise buttons and the slider's up/down buttons
-use the active task's mapped IR commands, including the input's configured
-direction reversal. Focus the wheel to turn it with arrow keys or scrolling, or
-drag the slider. Slider position describes browser movement, not actual volume;
-each accepted movement sends one directional command. Both controls require a
-configured input and active-task mapping. Changing tasks resets the virtual
-slider's baseline without transmitting a command.
+Operate the dial and slider directly on the numpad. Scroll over the dial to
+turn it, focus it to use arrow keys, or click it to switch targets when configured.
+Drag the slider or use its arrow keys. Current targets and the dial's selected
+source appear in hover text and accessible labels. Each accepted movement sends
+one of the active task's mapped IR commands, including configured direction
+reversal. Both controls require a configured input and active-task mapping to
+send commands. Visual feedback appears immediately, even if a busy controller
+drops an additional movement; it is not confirmation that a command ran.
+
+With the live input listener running, physical keys, dial turns/clicks, and slider
+movement also light up on the numpad. The dial marker follows physical turns.
+An absolute slider with a device-reported axis range mirrors its position;
+inputs without a known range, including stock GMMK raw reports, show directional
+movement. Slider position never claims to be actual device volume. Feedback
+continues while busy or unassigned, never sends commands, and clears on loss of
+connection. Physical slider updates do not interrupt an active browser drag or
+keyboard gesture, and skipped updates are not replayed when that gesture ends.
 
 Physical and virtual input share the same execution lock,
 command verification, and partial-failure behavior. Inputs received while busy

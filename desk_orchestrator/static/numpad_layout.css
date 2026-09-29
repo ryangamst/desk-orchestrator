@@ -1,5 +1,5 @@
 .profile-selector,.profile-selector form,.layout-toolbar,.layout-actions{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
-.numpad-side-controls[hidden],.virtual-control-rows[hidden],#numpad-editor [hidden]{display:none!important}
+.numpad-side-controls[hidden],#numpad-editor [hidden]{display:none!important}
 #numpad-editor h1,#numpad-editor h2,#numpad-editor input,#numpad-editor button{letter-spacing:0}
 .profile-selector{padding:20px 0;border-bottom:1px solid var(--border,#ddd);margin-bottom:24px}
 .profile-selector label,.layout-toolbar label{margin:0}

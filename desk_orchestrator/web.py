@@ -29,6 +29,7 @@ from . import ir_learning
 from . import oauth
 from . import tls
 from . import virtual_numpad
+from . import physical_numpad
 from . import hardware_map
 from .key_commands import COMMANDS, SHORTCUT_KEYS, command_label, editable_sequence, is_ir_binding, reserved_keys
 from . import gmmk_rgb
@@ -223,6 +224,10 @@ def create_app(directory, seed, *, trusted_hosts=None, secure_cookie=False):
             return state
         except (DeskError, OSError, ValueError):
             return {"error": "Controller state unavailable. Check the developer console."}, 503
+
+    @app.get("/api/numpad/keys")
+    def physical_numpad_keys():
+        return physical_numpad.state(store.read())
 
     @app.post("/api/numpad/press")
     def virtual_numpad_press():

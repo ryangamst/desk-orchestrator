@@ -305,12 +305,20 @@ host must pass through and support Consumer Control reports; verify playback on
 the connected computer. Usage IDs follow the
 [USB-IF HID Usage Tables](https://www.usb.org/sites/default/files/hut1_3_0.pdf).
 
-The Overview includes a **live virtual numpad**. Click a mapped key to run its
+The Overview includes a **live virtual numpad**. Physical key presses light up
+their matching keys while the live numpad listener is running, including
+unassigned keys and presses ignored while busy. Held keys stay lit and quick
+taps flash briefly. The dial rotates and lights up on physical turns or clicks;
+the slider lights up and follows physical movement. Scroll over the on-screen
+dial or focus it and use arrow keys; click it to switch targets when configured.
+Drag the on-screen slider or use its arrow keys. Current targets appear in each
+control's hover text and accessible label. Click a mapped key to run its
 saved task on the hosting controller, just like the physical numpad. The wheel
 and slider operate the active task's directional IR mappings. They honor the
 shared execution lock and direction reversal. Busy inputs
 are ignored, and lost requests are never retried automatically. The slider is a
-relative gesture control, not an absolute volume display. See
+movement indicator, not an absolute volume display: hardware with a reported
+axis range shows its position; other inputs show directional movement. See
 [virtual numpad behavior](docs/web-app.md#included) for details.
 
 The interface uses plain page names and functional instructions, without

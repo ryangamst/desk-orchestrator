@@ -38,6 +38,18 @@ class VirtualNumpadTests(unittest.TestCase):
             cfg['keypad']['controls'] = {}
         self.store.update(self.store.read()['revision'], edit)
 
+    def test_physical_key_feedback_is_read_only_and_requires_login(self):
+        from desk_orchestrator.physical_numpad import KeyFeedback
+        feedback = KeyFeedback(self.store.read())
+        feedback.event(79, 'KEY_KP1', 1)
+        response = self.client.get('/api/numpad/keys')
+        self.assertEqual(response.json, {'pressed_keys': ['KEY_KP1'], 'controls': {}})
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.execute.assert_not_called()
+        with self.client.session_transaction() as session:
+            session.clear()
+        self.assertEqual(self.client.get('/api/numpad/keys').status_code, 302)
+
     def controls(self, invert=False):
         def edit(cfg):
             for control in ('dial', 'slider'):
@@ -246,6 +258,11 @@ class VirtualNumpadTests(unittest.TestCase):
             page = self.client.get('/').text
         self.assertIn('Virtual numpad', page)
         self.assertIn('data-virtual-key="KEY_KP1"', page)
+        self.assertIn('id="virtual-dial"', page)
+        self.assertIn('id="virtual-slider"', page)
+        self.assertNotIn('data-virtual-control', page)
+        self.assertNotIn('virtual-control-row', page)
+        self.assertNotIn('virtual-dial-target', page)
         self.assertNotIn('Numpad mappings</h2>', page)
         with self.client.get('/static/virtual_numpad.js') as response:
             self.assertEqual(response.status_code, 200)

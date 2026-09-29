@@ -3,7 +3,6 @@
   const panel = document.getElementById('virtual-numpad');
   if (!panel) return;
   const keys = Array.from(panel.querySelectorAll('[data-virtual-key]'));
-  const controlButtons = Array.from(panel.querySelectorAll('[data-virtual-control]'));
   const dial = document.getElementById('virtual-dial');
   const slider = document.getElementById('virtual-slider');
   const status = document.getElementById('virtual-input-status');
@@ -13,6 +12,57 @@
   let lastInput = {key: -Infinity, control: -Infinity};
   let sliderPosition = 50;
   let dialPosition = 0;
+  let sliderInteracting = false, wheelRemainder = 0;
+  let physicalControls = {};
+  const activityTimers = new Map();
+  function rotateDial(steps) {
+    // Keep the angle continuous across full turns to avoid spinning backwards.
+    dialPosition += steps * 30;
+    dial.querySelector('.wheel-face').style.transform = `rotate(${dialPosition}deg)`;
+  }
+  function moveSlider(position) {
+    slider.value = String(Math.max(0, Math.min(100, position)));
+    sliderPosition = Number(slider.value); // Match the native range's step rounding.
+  }
+  function activate(element) {
+    clearTimeout(activityTimers.get(element));
+    element.classList.add('is-control-active');
+    activityTimers.set(element, setTimeout(() => {
+      element.classList.remove('is-control-active');
+      activityTimers.delete(element);
+    }, 350));
+  }
+  function clearActivity() {
+    for (const [element, timer] of activityTimers) {
+      clearTimeout(timer);
+      element.classList.remove('is-control-active');
+    }
+    activityTimers.clear();
+    sliderInteracting = false;
+    wheelRemainder = 0;
+  }
+  document.addEventListener('numpad-physical-controls', event => {
+    const next = event.detail;
+    for (const [name, element] of [['dial', dial], ['slider', slider]]) {
+      const current = next[name], previous = physicalControls[name];
+      element.classList.toggle('is-physical-active', Boolean(current?.active));
+      element.classList.toggle('is-physical-pressed', Boolean(current?.pressed));
+      if (!current) continue;
+      const sameSession = previous?.token === current.token;
+      const changed = !sameSession || previous.sequence !== current.sequence;
+      if (!changed) continue;
+      // A new/reconnected page shows only recent movement, never old turns.
+      const delta = sameSession ? current.steps - previous.steps : current.active ? current.direction : 0;
+      if (name === 'dial') {
+        if (delta) rotateDial(delta);
+      } else if (!sliderInteracting) {
+        if (Number.isFinite(current.position)) moveSlider(current.position);
+        else if (delta) moveSlider(sliderPosition + delta * 5);
+      }
+    }
+    // Consume movement during a drag too; never replay it when the drag ends.
+    physicalControls = next;
+  });
   function setText(element, text) {
     if (element.textContent !== text) element.textContent = text;
   }
@@ -46,12 +96,20 @@
       key.title = action;
       key.setAttribute('aria-label', `${key.textContent.trim()}: ${action}`);
     }
-    for (const button of controlButtons) button.disabled = !ready || !state?.controls[button.dataset.virtualControl]?.enabled;
     // Preserve an in-progress drag; movements while our request runs are dropped.
     slider.disabled = !online || !state || stale || (!pending && state.busy) || !state.controls.slider.enabled;
-    dial.setAttribute('aria-disabled', String(!ready || !state?.controls.dial.switch_enabled));
-    dial.setAttribute('aria-label', `Switch wheel volume target. Current target: ${state?.controls.dial.target || 'Unassigned'}. Use arrow keys to turn the dial.`);
+    dial.setAttribute('aria-disabled', String(!ready || !(state?.controls.dial.enabled || state?.controls.dial.switch_enabled)));
     dial.classList.toggle('mapped', Boolean(state?.controls.dial.enabled));
+    for (const [name, element] of [['dial', dial], ['slider', slider]]) {
+      const control = state?.controls[name];
+      const source = control?.source_count ? ` · Source ${control.source_index} of ${control.source_count}` : '';
+      const target = control?.enabled ? control.target + source : 'Unassigned';
+      const help = name === 'dial'
+        ? `Scroll over the dial or use arrow keys to turn.${control?.switch_enabled ? ' Click to switch target.' : ''}`
+        : 'Drag or use arrow keys to move. Position indicates movement, not device volume.';
+      element.title = `${name === 'dial' ? 'Dial' : 'Slider'} · ${target}. ${help}`;
+      element.setAttribute('aria-label', element.title);
+    }
     panel.setAttribute('aria-busy', String(pending || Boolean(state?.busy)));
     setText(status, !online ? 'Controller unavailable. Controls are disabled.' :
       pending ? 'Sending input… Additional presses are not queued.' :
@@ -59,11 +117,6 @@
       state?.busy ? 'Controller busy. Inputs are not queued.' : '');
     if (state) {
       setText(activeLabel, state.active_label);
-      for (const name of ['dial', 'slider']) {
-        const control = state.controls[name];
-        const position = control.source_count ? (control.source_index ? ` · Source ${control.source_index} of ${control.source_count}` : ' · Default') : '';
-        setText(document.getElementById(`virtual-${name}-target`), control.enabled ? control.target + position : 'Unassigned');
-      }
       for (const element of document.querySelectorAll('[data-linked-task]')) {
         element.classList.toggle('is-active-task', element.dataset.linkedTask === state.active_task);
       }
@@ -111,10 +164,6 @@
       }
       panel.dataset.revision = String(next.revision);
       document.dispatchEvent(new Event('overview-updated'));
-    }
-    if (next.active_task !== state?.active_task) {
-      sliderPosition = 50;
-      slider.value = '50';
     }
     state = next;
     online = true;
@@ -165,10 +214,6 @@
       const data = await readResponse(response);
       if (!response.ok || !data.ok) throw new Error(data.error || 'Input was rejected.');
       result.textContent = data.message;
-      if (input.kind === 'control' && input.control === 'dial' && input.direction !== 'switch') {
-        dialPosition = (dialPosition + (input.direction === 'increase' ? 30 : -30)) % 360;
-        dial.querySelector('.wheel-face').style.transform = `rotate(${dialPosition}deg)`;
-      }
     } catch (error) {
       result.textContent = error instanceof TypeError ? 'Connection lost. The command may have run. Check Activity before trying again; nothing was retried.' : error.message;
       result.classList.add('error-text');
@@ -183,15 +228,15 @@
   for (const key of keys) {
     key.addEventListener('click', () => send({kind: 'key', key: key.dataset.virtualKey}, key));
   }
-  for (const button of controlButtons) {
-    button.addEventListener('click', () => {
-      const control = button.dataset.virtualControl;
-      if (control === 'slider') {
-        sliderPosition = Math.max(0, Math.min(100, sliderPosition + (button.dataset.direction === 'increase' ? 1 : -1)));
-        slider.value = String(sliderPosition);
-      }
-      send({kind: 'control', control, direction: button.dataset.direction}, button);
-    });
+  function canUseDial(direction) {
+    return online && state && String(state.revision) === panel.dataset.revision &&
+      (direction === 'switch' ? state.controls.dial.switch_enabled : state.controls.dial.enabled);
+  }
+  function useDial(direction) {
+    if (!canUseDial(direction)) return;
+    activate(dial);
+    if (direction !== 'switch') rotateDial(direction === 'increase' ? 1 : -1);
+    return send({kind: 'control', control: 'dial', direction}, dial);
   }
   // Native button activation remains accessible; holding a key never repeats a task.
   panel.addEventListener('keydown', event => {
@@ -200,29 +245,48 @@
   dial.addEventListener('keydown', event => {
     if (['Enter', ' '].includes(event.key)) {
       event.preventDefault();
-      if (!event.repeat) send({kind: 'control', control: 'dial', direction: 'switch'}, dial);
+      if (!event.repeat) useDial('switch');
       return;
     }
     if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)) return;
     event.preventDefault();
-    if (!event.repeat) send({kind: 'control', control: 'dial', direction: ['ArrowUp', 'ArrowRight'].includes(event.key) ? 'increase' : 'decrease'}, dial);
+    if (!event.repeat) useDial(['ArrowUp', 'ArrowRight'].includes(event.key) ? 'increase' : 'decrease');
   });
-  dial.addEventListener('click', () => send({kind: 'control', control: 'dial', direction: 'switch'}, dial));
+  dial.addEventListener('click', () => useDial('switch'));
   dial.addEventListener('wheel', event => {
-    if (document.activeElement !== dial) return;
+    if (event.ctrlKey || !event.deltaY || !canUseDial('increase')) return;
     event.preventDefault();
-    if (event.deltaY) send({kind: 'control', control: 'dial', direction: event.deltaY < 0 ? 'increase' : 'decrease'}, dial);
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1);
+    if (Math.sign(delta) !== Math.sign(wheelRemainder)) wheelRemainder = 0;
+    wheelRemainder += delta;
+    if (Math.abs(wheelRemainder) < 24) return;
+    const direction = wheelRemainder < 0 ? 'increase' : 'decrease';
+    wheelRemainder = 0; // Consume the full gesture, including dropped busy inputs.
+    return useDial(direction);
   }, {passive: false});
+  dial.addEventListener('pointerleave', () => { wheelRemainder = 0; });
+  slider.addEventListener('pointerdown', () => { sliderInteracting = true; });
+  slider.addEventListener('keydown', event => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) sliderInteracting = true;
+  });
+  slider.addEventListener('keyup', () => { sliderInteracting = false; });
+  slider.addEventListener('blur', () => { sliderInteracting = false; });
+  window.addEventListener('pointerup', () => { sliderInteracting = false; });
+  window.addEventListener('pointercancel', () => { sliderInteracting = false; });
   slider.addEventListener('input', () => {
     const next = Number(slider.value);
     const delta = next - sliderPosition;
     sliderPosition = next; // Consume skipped movement too; never accumulate a backlog.
-    if (delta) send({kind: 'control', control: 'slider', direction: delta > 0 ? 'increase' : 'decrease'}, slider);
+    if (delta) {
+      activate(slider);
+      return send({kind: 'control', control: 'slider', direction: delta > 0 ? 'increase' : 'decrease'}, slider);
+    }
   });
-  window.addEventListener('pagehide', () => { online = false; render(); });
+  window.addEventListener('pagehide', () => { online = false; clearActivity(); render(); });
   window.addEventListener('pageshow', () => refresh());
   document.addEventListener('visibilitychange', () => {
     online = false;
+    clearActivity();
     render();
     if (!document.hidden) refresh();
   });

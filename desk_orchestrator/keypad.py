@@ -10,6 +10,7 @@ from .controls import ControlDecoder, run_control, active_scene
 from .gmmk_slider import SliderDevice
 from .key_commands import run_key_command
 from . import numpad_profiles, key_learning
+from .physical_numpad import KeyFeedback
 
 from .core import DeskError, Runner, require
 from .hardware import Hardware
@@ -88,6 +89,9 @@ async def _listen(config, runner, *, live=False, reload_config=None):
     last_control = float("-inf")
     sources = keypad.get("controls", {})
     control_scene = None
+    feedback = KeyFeedback(config) if live else None
+    if feedback:
+        feedback.clear()
 
     async def run_scene(name, scene_runner):
         nonlocal finished_at, dry_scene
@@ -150,6 +154,8 @@ async def _listen(config, runner, *, live=False, reload_config=None):
 
     async def heartbeat():
         while True:
+            if feedback:
+                feedback.publish()
             for path, state in states.items():
                 log.listener(path, live=live, **state)
             await asyncio.sleep(1)
@@ -163,6 +169,17 @@ async def _listen(config, runner, *, live=False, reload_config=None):
 
     def handle_event(event, path, main_input, controls):
         nonlocal active, last_control, control_scene
+        if feedback and main_input and event.type == 1:
+            feedback.event(event.code, evdev.ecodes.KEY.get(event.code, []), event.value)
+        dial = sources.get("dial", {})
+        click_input = ("press_code" in dial and str(Path(path).resolve()) ==
+                       str(Path(dial.get("press_device", dial["device"])).resolve()))
+        is_click = click_input and event.type == 1 and event.code == dial["press_code"]
+        if feedback:
+            for name, source in controls.items():
+                feedback.control_event(name, source, event)
+            if is_click:
+                feedback.click(event.value)
         if broker.consume(event, path):
             return
         # Each input and all work dispatched from it share one trace across threads.
@@ -176,10 +193,6 @@ async def _listen(config, runner, *, live=False, reload_config=None):
                 decoder.reset()
                 control_scene = scene_now
             directions = [(name, decoder.decode(name, source, event, click=False)) for name, source in controls.items()]
-            dial = sources.get("dial", {})
-            click_input = ("press_code" in dial and str(Path(path).resolve()) ==
-                           str(Path(dial.get("press_device", dial["device"])).resolve()))
-            is_click = click_input and event.type == 1 and event.code == dial["press_code"]
             if is_click:
                 directions.append(("dial", "switch" if event.value == 1 else None))
             # Decode first so movement during a task cannot build up.
@@ -253,6 +266,15 @@ async def _listen(config, runner, *, live=False, reload_config=None):
                     fcntl.ioctl(device.fd, 0x400445A0, struct.pack("i", time.CLOCK_MONOTONIC))
                     if keypad.get("grab", True):
                         device.grab()
+                    if feedback:
+                        for name, source in controls.items():
+                            if source["mode"] == "absolute":
+                                try:
+                                    info = device.absinfo(source["code"])
+                                    if info and info.max > info.min:
+                                        feedback.ranges[name] = (info.min, info.max)
+                                except (OSError, AttributeError):
+                                    pass  # Directional feedback still works without a range.
                     decoder.reset()
                     listener_state(path, "listening", name=device.name, grab=keypad.get("grab", True))
                     print(f"Listening to {device.name} ({'LIVE' if live else 'DRY RUN'})", flush=True)
@@ -265,6 +287,14 @@ async def _listen(config, runner, *, live=False, reload_config=None):
                             continue
                         handle_event(event, path, main_input, controls)
             except OSError as exc:
+                if feedback:
+                    if main_input:
+                        feedback.keys.clear()
+                    affected = set(controls)
+                    dial = sources.get("dial", {})
+                    if "press_code" in dial and canonical == str(Path(dial.get("press_device", dial["device"])).resolve()):
+                        affected.add("dial")
+                    feedback.clear_controls(affected)
                 decoder.reset()
                 listener_state(path, "disconnected", error=str(exc))
                 print(f"Input {path} unavailable ({exc}); reconnecting in 2 seconds", flush=True)
@@ -282,6 +312,8 @@ async def _listen(config, runner, *, live=False, reload_config=None):
                     async for event in device.async_read_loop():
                         handle_event(event, device.path, False, {name: source})
             except OSError as exc:
+                if feedback:
+                    feedback.clear_controls([name])
                 decoder.positions.pop(name, None)
                 listener_state(identity, "disconnected", error=str(exc))
                 await asyncio.sleep(2)
@@ -306,6 +338,8 @@ async def _listen(config, runner, *, live=False, reload_config=None):
         for reader in readers:
             reader.cancel()
         await asyncio.gather(*readers, return_exceptions=True)
+        if feedback:
+            feedback.clear()
         if active is not None:
             await asyncio.shield(active)
         for path in states:

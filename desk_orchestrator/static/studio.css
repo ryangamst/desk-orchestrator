@@ -75,13 +75,14 @@ footer{width:100%;flex-shrink:0;font-size:9px}.login-card{background:radial-grad
    dim or desaturate while each volume adjustment is in flight. */
 .numpad-panel .section-heading{align-items:center;gap:8px;flex-wrap:wrap}.numpad-panel .section-heading h2{margin:0}
 .numpad-housing button.key{padding:0;font-family:inherit;cursor:pointer;min-width:0}.numpad-housing button.key:disabled{cursor:default}.numpad-housing button.key.is-pressed{transform:translateY(2px);box-shadow:inset 0 2px 5px #0006;opacity:1}
+.numpad-housing button.key.is-physical-pressed{transform:translateY(2px);border-color:var(--info);box-shadow:inset 0 2px 5px #0006,0 0 0 2px var(--info);opacity:1}
 .virtual-slider{writing-mode:vertical-lr;direction:rtl;appearance:none;width:32px;height:100%;min-height:95px;padding:0;margin:0;border:0;background:transparent;cursor:ns-resize}
 .virtual-slider::-webkit-slider-runnable-track{width:8px;background:#0c0c11;border:1px solid var(--line-strong);border-radius:8px}
 .virtual-slider::-webkit-slider-thumb{appearance:none;width:30px;height:18px;margin-left:-12px;border:1px solid #eeedf3;border-radius:4px;background:linear-gradient(#eeedf3,#aaa7b9);box-shadow:0 3px 4px #0008}
 .virtual-slider::-moz-range-track{width:8px;background:#0c0c11;border:1px solid var(--line-strong);border-radius:8px}
 .virtual-slider::-moz-range-thumb{width:30px;height:18px;border:1px solid #eeedf3;border-radius:4px;background:#c4bed4}
 .virtual-slider:disabled{cursor:default}.numpad-wheel[aria-disabled=true]{cursor:default}.numpad-wheel .wheel-face{transition:transform .12s}
-.virtual-control-rows{margin:14px 0}.virtual-control-row{display:grid;grid-template-columns:minmax(0,1fr) 36px 36px;gap:7px;padding:11px 0;border-top:1px solid var(--line);align-items:center}.virtual-control-row strong{font-size:12px}.virtual-control-row small{display:block;font-size:11px;overflow-wrap:anywhere}.virtual-control-row .button{min-height:36px;padding:0;font-size:19px}.virtual-control-row button:disabled{cursor:default}.virtual-input-status{margin:10px 0!important}.virtual-input-status:empty{display:none}#virtual-input-result{overflow-wrap:anywhere;font-size:12px}#virtual-input-result:empty{display:none}#virtual-input-result.error-text{color:var(--red)}
+.virtual-input-status{margin:10px 0!important}.virtual-input-status:empty{display:none}#virtual-input-result{overflow-wrap:anywhere;font-size:12px}#virtual-input-result:empty{display:none}#virtual-input-result.error-text{color:var(--red)}
 /* Task command picker shares the Overview's numpad housing and key geometry. */
 .key-command-layout{display:grid;grid-template-columns:minmax(250px,340px) minmax(0,1fr);gap:32px;align-items:start}
 .key-command-editor [hidden]{display:none!important}
@@ -111,3 +112,8 @@ footer{width:100%;flex-shrink:0;font-size:9px}.login-card{background:radial-grad
 .numpad-panel .virtual-active-task{display:flex;flex-direction:column;gap:4px;margin:0 0 22px;padding:12px 14px;border:1px solid #c4a6ff30;border-left:3px solid var(--accent);border-radius:9px;background:#c4a6ff0c}
 .virtual-active-task>span{font-size:11px;font-weight:550;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .virtual-active-task>strong{font-size:18px;line-height:1.35;font-weight:650;color:var(--ink);overflow-wrap:anywhere}
+
+/* Physical and browser activity share the on-device controls. */
+.numpad-wheel:is(.is-control-active,.is-physical-active,.is-physical-pressed,.is-pressed) .wheel-face{border-color:var(--info);box-shadow:0 0 0 2px var(--info),0 0 12px #acd4ff55}
+.numpad-wheel:is(.is-physical-pressed,.is-pressed) .wheel-face{filter:brightness(1.2)}
+:is(.virtual-slider,.custom-slider):is(.is-control-active,.is-physical-active,.is-pressed){outline:2px solid var(--info);outline-offset:3px;border-radius:5px;opacity:1}

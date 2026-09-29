@@ -1,8 +1,7 @@
-{% set controls = cfg.scenes[active_task].get('controls', {}) if active_task else {} %}
 {% set placed_controls = numpad_layout.get('controls', [])|map(attribute='id')|list if numpad_layout else [] %}
-<section class="panel numpad-panel" id="virtual-numpad" data-layout-signature="{{ layout_signature }}" data-state-url="{{ url_for('virtual_numpad_state') }}" data-press-url="{{ url_for('virtual_numpad_press') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
+<section class="panel numpad-panel" id="virtual-numpad" data-layout-signature="{{ layout_signature }}" data-state-url="{{ url_for('virtual_numpad_state') }}" data-keys-url="{{ url_for('physical_numpad_keys') }}" data-press-url="{{ url_for('virtual_numpad_press') }}" data-revision="{{ cfg.revision }}" data-csrf="{{ csrf }}">
   <div class="section-heading"><h2>Virtual numpad</h2><span class="pill teal">Live control</span></div>
-  <p class="hint">Press a mapped key to run its task or send the active task’s keyboard or IR command.</p>
+  <p class="hint">Press a mapped key to run its task or send the active task’s keyboard or IR command. Physical keys, dial turns, and slider movement light up here.</p>
   <p class="virtual-active-task" role="status" aria-live="polite"><span>Active task</span><strong id="virtual-active-task">{{ cfg.scenes[active_task].label if active_task else 'None' }}</strong></p>
   <div class="numpad-housing {{ 'custom-housing' if numpad_layout }}" role="group" aria-label="Live virtual numpad">
     <div class="numpad {{ 'custom-numpad' if numpad_layout }}" {% if numpad_layout %}data-custom-layout="{{ numpad_layout|tojson|forceescape }}"{% endif %}>
@@ -33,17 +32,9 @@
     </div>
   </div>
   <p class="mapping-focus" id="mapping-focus">Hover or focus a task or key to see its mapping.</p>
-  <div class="virtual-control-rows" {{ 'hidden' if numpad_layout and not cfg.keypad.get('controls') }}>
-    {% for control, label in [('dial', 'Wheel'), ('slider', 'Slider')] %}
-    <div class="virtual-control-row">
-      <div><strong>{{ label }}</strong><small id="virtual-{{ control }}-target">{{ cfg.inventory.get(controls[control].device, {}).get('name', controls[control].device) if controls.get(control) else 'Unassigned' }}</small></div>
-      <button type="button" class="button small" disabled data-virtual-control="{{ control }}" data-direction="decrease" aria-label="{{ 'Turn wheel counterclockwise' if control == 'dial' else 'Move slider down' }}">{{ '↶' if control == 'dial' else '↓' }}</button>
-      <button type="button" class="button small" disabled data-virtual-control="{{ control }}" data-direction="increase" aria-label="{{ 'Turn wheel clockwise' if control == 'dial' else 'Move slider up' }}">{{ '↷' if control == 'dial' else '↑' }}</button>
-    </div>
-    {% endfor %}
-  </div>
   <p id="virtual-input-status" class="hint virtual-input-status" role="status" aria-live="polite">Connecting to controller…</p>
   <p id="virtual-input-result" class="hint" role="status" aria-live="polite"></p>
   <noscript><p class="notice error">Enable JavaScript to operate the virtual numpad.</p></noscript>
 </section>
 <script src="{{ url_for('static', filename='virtual_numpad.js') }}" defer></script>
+<script src="{{ url_for('static', filename='physical_numpad.js') }}" defer></script>
